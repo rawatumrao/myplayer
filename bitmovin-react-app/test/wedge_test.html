@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <h1>React Wedge Test Page</h1>
+        <div id="ReactWedge"></div>
+        <div id="hlsVideo"></div>
+        <script type="text/javascript">
+            // data to inject into React wedge
+            var g_sPath = ''; // fill with path to test video
+            var g_sPlayerDiv = 'hlsVideo';
+            var g_sVideoId = 'SystemVideoTest'; // analytics stuff
+            var g_sEventTitle = 'System Video Test'; // event title
+
+        </script>
+            
+        <!-- TODO: replace with local copies -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bitmovin-player@8.156.0/bitmovinplayer-ui.css">
+        <script type="text/javascript" src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
+        <script type="text/javascript" src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
+        <script type="text/javascript" src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js" crossorigin></script>
+        <!-- replace this with your local index.js or whatever until I make a beter build system -->
+        <script type="module" src="../src/index.jsx"></script>
+    
+             
+        <!--script type="text/javascript">
+            document.addEventListener(VideoPlayer.EVENT_PLAYING, (e) => {
+                console.log(VideoPlayer.EVENT_PLAYING);
+            });
+            
+            document.addEventListener(VideoPlayer.EVENT_PAUSED, (e) => {
+                console.log(VideoPlayer.EVENT_PAUSED);
+            });
+            
+            document.addEventListener(VideoPlayer.EVENT_ERROR, (e) => {
+                console.log(VideoPlayer.EVENT_ERROR);
+            });
+            
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('hlsVideo').style.display = 'block';
+            });
+            </script>
+    </body-->
+</html>

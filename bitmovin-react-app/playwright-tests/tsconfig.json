@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+          "@pages/*":["./src/applicationDriver/pageObjects/*"],
+          "@constants/*":["./src/applicationDriver/constants/*"]
+      },
+      "target": "ESNext",
+      "module": "CommonJS",
+      "moduleResolution": "Node",
+      "sourceMap": true,
+      "outDir": "../tests-out",
+      "resolveJsonModule": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "allowJs": true,
+  }
+}
