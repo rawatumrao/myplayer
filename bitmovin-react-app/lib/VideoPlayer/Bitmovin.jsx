@@ -17,6 +17,14 @@ class BitmovinPlayer extends VideoPlayer {
                 autoplay: true,
                 muted: false
             },
+            style: {
+                // Set styles dynamically using themeSettings
+                seekbarBackgroundColor: this.themeSettings.seekbarColor,
+                seekbarPlayedColor: this.themeSettings.seekbarPlayedColor,
+                volumeBarColor: this.themeSettings.volumeBarColor,
+                fontSize: this.themeSettings.fontSize,
+                fontColor: this.themeSettings.fontColor,
+            },
             ui: true,
         }
         this.player = new bitmovin.player.Player(this.playerElement, this.conf);
