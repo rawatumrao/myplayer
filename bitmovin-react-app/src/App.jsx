@@ -85,15 +85,22 @@ function App() {
     };
   }, []);
 
-
-
-  return (
+ const toggleSettingsVisibility = () => {
+    setIsSettingsVisible(!isSettingsVisible);  // Toggle the visibility of theme settings
+  };
+  
+return (
     <div>
-      {/* Render the VideoPlayerSettings component */}
-      <VideoPlayerSettings 
-        themeSettings={themeSettings} 
-        setThemeSettings={setThemeSettings} 
-      />
+      {/* "Theme Settings" button */}
+      <button onClick={toggleSettingsVisibility}>Theme Settings</button>
+
+      {/* Conditionally render the VideoPlayerSettings panel */}
+      {isSettingsVisible && (
+        <VideoPlayerSettings 
+          themeSettings={themeSettings} 
+          setThemeSettings={setThemeSettings} 
+        />
+      )}
     </div>
   );
 }
