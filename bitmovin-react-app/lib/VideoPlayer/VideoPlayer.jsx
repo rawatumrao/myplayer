@@ -26,7 +26,33 @@ class VideoPlayer {
         this.state = {
             status: this.STATUS_NONE
         };
+         // Default theme settings
+        this.themeSettings = {
+            seekbarColor: '#ff0000',          // Default seekbar color
+            seekbarPlayedColor: '#00ff00',   // Default played seekbar color
+            volumeBarColor: '#ff6600',       // Default volume bar color
+            fontSize: '16px',                // Default font size
+            fontColor: '#ffffff',           // Default font color
+        };
     }
+
+    updateTheme(newThemeSettings) {
+        this.themeSettings = { ...this.themeSettings, ...newThemeSettings };
+        this.applyTheme();
+    }
+
+    applyTheme() {
+        if (this.player) {
+            this.player.setStyle({
+                seekbarBackgroundColor: this.themeSettings.seekbarColor,
+                seekbarPlayedColor: this.themeSettings.seekbarPlayedColor,
+                volumeBarColor: this.themeSettings.volumeBarColor,
+                fontSize: this.themeSettings.fontSize,
+                fontColor: this.themeSettings.fontColor,
+            });
+        }
+    }
+    
 
     createHive(playerId) {
         console.log('createhive');
