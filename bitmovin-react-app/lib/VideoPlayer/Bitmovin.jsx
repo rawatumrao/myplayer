@@ -17,10 +17,16 @@ class BitmovinPlayer extends VideoPlayer {
                 autoplay: true,
                 muted: false
             },
+            ui: true,
         }
         this.player = new bitmovin.player.Player(this.playerElement, this.conf);
+        this.applyTheme(); // Apply theme after player initialization
         this.setupEventListeners();
         this.setStatus(VideoPlayer.STATUS_INITALIZED);
+    }
+
+     applyTheme() {
+        super.applyTheme(); // Call parent method to apply general theme settings
     }
 
     play() {
