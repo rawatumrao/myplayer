@@ -18,7 +18,7 @@ function App() {
     fontSize: '16px',
     fontColor: '#ffffff',
   });
-
+ const [isSettingsVisible, setIsSettingsVisible] = useState(false);  // State to control visibility of settings panel
   useEffect(() => {
     window.loadPlayer = () => {
       setIsPlayerLoaded(true);
