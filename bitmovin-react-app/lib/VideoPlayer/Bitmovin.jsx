@@ -1,5 +1,7 @@
 import Logger from './../Logger';
 import VideoPlayer from './VideoPlayer';
+import { defaultUiConfig } from '../../src/bitmovin/ui/config/defaultUiConfig';
+import { UIManager } from 'bitmovin-player-ui';
 
 const log = new Logger();
 
@@ -28,12 +30,13 @@ class BitmovinPlayer extends VideoPlayer {
             ui: true,
         }
         this.player = new bitmovin.player.Player(this.playerElement, this.conf);
+        let uiManager = new UIManager(this.player, defaultUiConfig);
         this.applyTheme(); // Apply theme after player initialization
         this.setupEventListeners();
         this.setStatus(VideoPlayer.STATUS_INITALIZED);
     }
 
-     applyTheme() {
+    applyTheme() {
         super.applyTheme(); // Call parent method to apply general theme settings
     }
 
@@ -104,6 +107,10 @@ class BitmovinPlayer extends VideoPlayer {
         this.player.on(bitmovin.player.PlayerEvent.Playing, (playingEvent) => {
             log.debug(`PlayerEvent.Playing`);
             this.setStatus(VideoPlayer.STATUS_PLAYING);
+            const pauseButton = document.getElementById("playback-pause-button");
+            if (pauseButton) {
+                pauseButton.setAttribute('title', 'Pause');
+            }
             this.dispatchEvent(VideoPlayer.EVENT_PLAYING, playingEvent);
             $.oVideoInfo.status = "Playing";
         });
@@ -111,15 +118,53 @@ class BitmovinPlayer extends VideoPlayer {
         this.player.on(bitmovin.player.PlayerEvent.Paused, (pausedEvent) => {
             log.debug(`PlayerEvent.Paused`);
             this.setStatus(VideoPlayer.STATUS_PAUSED);
+            const playButton = document.getElementById("playback-pause-button");
+            if (playButton) {
+                playButton.setAttribute('title', 'Play');
+            }
             this.dispatchEvent(VideoPlayer.EVENT_PAUSED, pausedEvent);
             $.oVideoInfo.status = "Paused";
         });
 
         this.player.on(bitmovin.player.PlayerEvent.Error, (errorEvent) => {
             log.debug(`PlayerEvent.Error`);
-            this.setStatus(VideoPlayer.STATUS_ERROR);
-            this.dispatchEvent(VideoPlayer.EVENT_ERROR, errorEvent);
-        })
+            const errorMessage = document.getElementById("bmpui-id-42");
+            if (errorMessage) {
+                errorMessage.remove();
+                console.log("The downloaded manifest is invalid -- SOURCE_MANIFEST_INVALID");
+            } else {
+                this.setStatus(VideoPlayer.STATUS_ERROR);
+                this.dispatchEvent(VideoPlayer.EVENT_ERROR, errorEvent);
+            }   
+        });
+
+        this.player.on(bitmovin.player.PlayerEvent.Unmuted, (unmuteEvent) => {
+            log.debug(`PlayerEvent.Unmuted`);
+            const unmuteButton = document.getElementById("volume-toggle-button");
+            if (unmuteButton) {
+                unmuteButton.setAttribute('title', 'Mute');
+            }
+        });
+
+        this.player.on(bitmovin.player.PlayerEvent.Muted, (muteEvent) => {
+            log.debug(`PlayerEvent.Muted`);
+            const MuteButton = document.getElementById("volume-toggle-button");
+            if (MuteButton) {
+                MuteButton.setAttribute('title', 'Unmute');
+            }
+        });
+
+        this.player.on(bitmovin.player.PlayerEvent.PlayerResized, (resizedEvent) => {
+            log.debug(`PlayerEvent.Resized`);
+            const resizedButton = document.getElementById("fullscreen-button");
+            if (resizedButton) {
+                if (resizedButton.classList.contains('bmpui-off')) {
+                  resizedButton.setAttribute('title', 'Full screen');
+                } else if (resizedButton.classList.contains('bmpui-on')) {
+                  resizedButton.setAttribute('title', 'Exit full screen');
+                }
+            }
+        });
 
         this.player.on(bitmovin.player.PlayerEvent.Ready, (readyEvent) => {
             const allElements = document.querySelectorAll('[class*="bmpui-"]');
@@ -133,6 +178,26 @@ class BitmovinPlayer extends VideoPlayer {
 
             log.debug(`PlayerEvent.Ready`);
             this.setStatus(VideoPlayer.STATUS_READY);
+            const replayButton = document.getElementById("replay-button");
+            if (replayButton) {
+                replayButton.setAttribute('title', 'Refresh');
+            }
+            const UnmuteButton = document.getElementById("volume-toggle-button");
+            if (UnmuteButton) {
+                UnmuteButton.setAttribute('title', 'Mute');
+            }
+            const settingsButton = document.getElementById("player-settings-button");
+            if (settingsButton) {
+                settingsButton.setAttribute('title', 'Settings');
+            }
+            const volumeButton = document.getElementById("volume-slider");
+            if (volumeButton) {
+                volumeButton.setAttribute('title', 'Volume');
+            }
+            const resizeButton = document.getElementById("fullscreen-button");
+            if (resizeButton) {
+                resizeButton.setAttribute('title', 'Full screen');
+            }
             this.dispatchEvent(VideoPlayer.EVENT_READY, readyEvent);
         });
 
