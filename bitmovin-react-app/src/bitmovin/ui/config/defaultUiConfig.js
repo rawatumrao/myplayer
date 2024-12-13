@@ -1,4 +1,4 @@
-import { UIContainer, PlaybackToggleOverlay, ControlBar, Container, BufferingOverlay, PlaybackTimeLabel, SeekBar, VolumeToggleButton, VolumeSlider, Spacer, FullscreenToggleButton, SubtitleOverlay, PlaybackToggleButton, ReplayButton, Label, PlaybackSpeedSelectBox, SettingsToggleButton, SettingsPanel, PictureInPictureToggleButton, VideoQualitySelectBox, SettingsPanelItem, SettingsPanelPage, AudioQualitySelectBox, CastToggleButton, AirPlayToggleButton, CastStatusOverlay } from 'bitmovin-player-ui';
+import { UIContainer, PlaybackToggleOverlay, ControlBar, Container, BufferingOverlay, PlaybackTimeLabel, SeekBar, VolumeToggleButton, VolumeSlider, Spacer, FullscreenToggleButton, SubtitleOverlay, PlaybackToggleButton, ReplayButton, Label, PlaybackSpeedSelectBox, SettingsToggleButton, SettingsPanel, PictureInPictureToggleButton, VideoQualitySelectBox, SettingsPanelItem, SettingsPanelPage, AudioQualitySelectBox, CastToggleButton, AirPlayToggleButton, CastStatusOverlay, RecommendationOverlay, ErrorMessageOverlay } from 'bitmovin-player-ui';
 
 const playbackSpeedSelectBox = new PlaybackSpeedSelectBox(
     {
@@ -12,24 +12,24 @@ export const settingsPanel = new SettingsPanel({
     components: [
         new SettingsPanelPage({
             components: [
-                new SettingsPanelItem('Video Quality', new VideoQualitySelectBox(), 
-                { 
-                    id: 'video-quality-selectbox', 
-                    cssClass: 'video-quality-selectbox', 
-                    cssClasses: ['tagging-test-class', 'globalmeet-custom-class'] 
-                }, {cssClass: 'the-item-class'}),
-                new SettingsPanelItem('Speed', playbackSpeedSelectBox, 
-                { 
-                    id: 'video-speed-selectbox', 
-                    //cssClass: 'video-speed-selectbox', 
-                    cssClasses: ['tagging-test-class', 'globalmeet-custom-class'] 
-                }),
-                new SettingsPanelItem('Audio Quality', new AudioQualitySelectBox(), 
-                { 
-                    id: 'audio-quality-selectbox',
-                    cssClass: 'audio-quality-selectbox', 
-                    cssClasses: ['tagging-test-class', 'globalmeet-custom-class'] 
-                }),
+                new SettingsPanelItem('Video Quality', new VideoQualitySelectBox(),
+                    {
+                        id: 'video-quality-selectbox',
+                        cssClass: 'video-quality-selectbox',
+                        cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                    }, { cssClass: 'the-item-class' }),
+                new SettingsPanelItem('Speed', playbackSpeedSelectBox,
+                    {
+                        id: 'video-speed-selectbox',
+                        //cssClass: 'video-speed-selectbox', 
+                        cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                    }),
+                new SettingsPanelItem('Audio Quality', new AudioQualitySelectBox(),
+                    {
+                        id: 'audio-quality-selectbox',
+                        cssClass: 'audio-quality-selectbox',
+                        cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                    }),
             ],
             //cssClasses: ['settings-panel-page-extended']
         })
@@ -103,7 +103,9 @@ export const defaultUiConfig = new UIContainer({
                     cssClasses: ['controlbar-bottom']
                 })
             ]
-        })
+        }),
+        new RecommendationOverlay(),
+        new ErrorMessageOverlay(),
     ],
     cssClasses: ['ui-skin-modern']
 });
