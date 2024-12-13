@@ -22,7 +22,7 @@ const VideoPlayerSettings = ({ themeSettings, setThemeSettings }) => {
   };
 
   return (
-    <div>
+    <div style={{ padding: '20px', backgroundColor: '#f4f4f4', borderRadius: '8px' }}>
       <h3>Customize Video Player Theme</h3>
       <div>
         <label>Seekbar Color:</label>
