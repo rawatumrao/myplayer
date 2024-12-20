@@ -2,15 +2,14 @@ import React, { useEffect, useState } from 'react';
 import Logger from '../lib/Logger';
 import VideoPlayer from '../lib/VideoPlayer/VideoPlayer';
 import BitmovinPlayer from '../lib/VideoPlayer/Bitmovin';
-import VideoPlayerSettings from '../lib/VideoPlayer/VideoPlayerSettings'; // Import the settings component
-
+import VideoPlayerTheme from '../lib/VideoPlayer/VideoPlayerTheme';
 
 const log = new Logger();
 
 function App() {
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
 
-  // Theme settings state
   const [themeSettings, setThemeSettings] = useState({
     seekbarColor: '#ff0000',
     seekbarPlayedColor: '#00ff00',
@@ -18,7 +17,7 @@ function App() {
     fontSize: '16px',
     fontColor: '#ffffff',
   });
- const [isSettingsVisible, setIsSettingsVisible] = useState(false);  // State to control visibility of settings panel
+
   useEffect(() => {
     window.loadPlayer = () => {
       setIsPlayerLoaded(true);
@@ -50,7 +49,7 @@ function App() {
       }
       log.info('VideoPlayer loaded');
     } 
-  }, [isPlayerLoaded, themeSettings]); // Apply theme on player load or theme change
+  }, [isPlayerLoaded, themeSettings]);
 
   useEffect(() => {
     window.loadHiveJs = () => {
@@ -85,18 +84,18 @@ function App() {
     };
   }, []);
 
- const toggleSettingsVisibility = () => {
-    setIsSettingsVisible(!isSettingsVisible);  // Toggle the visibility of theme settings
+  const toggleSettingsVisibility = () => {
+    setIsSettingsVisible(!isSettingsVisible);
   };
-  
-return (
-    <div>
-      {/* "Theme Settings" button */}
-      <button onClick={toggleSettingsVisibility}>Theme Settings</button>
 
-      {/* Conditionally render the VideoPlayerSettings panel */}
+  return (
+    <div>
+      {/* "Theme Controls" button */}
+      <button onClick={toggleSettingsVisibility}>PlayerThemeControls</button>
+
+      {/* Conditionally render the VideoPlayerTheme panel */}
       {isSettingsVisible && (
-        <VideoPlayerSettings 
+        <VideoPlayerTheme 
           themeSettings={themeSettings} 
           setThemeSettings={setThemeSettings} 
         />
