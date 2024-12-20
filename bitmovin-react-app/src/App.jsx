@@ -19,24 +19,42 @@ function App() {
   });
 
   useEffect(() => {
-    window.loadPlayer = () => {
-      setIsPlayerLoaded(true);
+    window.loadPlayer = (playerDiv, videoId, eventTitle, streamPath, autoPlay) => {
+      log.info('Entering VideoPlayer React App.jsx');
+      var player = new BitmovinPlayer(playerDiv, videoId);
+      window.VideoPlayer = VideoPlayer;
+      if (window.isHiveMulticast === true) {
+        window.loadHiveJs();
+      } else {
+        player.load(eventTitle, streamPath);
+      }
+      log.info('VideoPlayer loaded');
+
+      if (typeof $ !== 'undefined') { // pages without jquery
+        if (typeof $.viewerHTML5Player !== 'undefined') { // the hellish depths I go to to make the admin pages work.
+          /*if (window.g_player) {
+            console.log('window.g_player DEFINED');
+            $.viewerHTML5Player.init();
+          } else {
+            console.log('window.g_player UNDEFINED -- ADDING EVENT LISTENER');
+            document.addEventListener(VideoPlayer.STATUS_LOADED, () => {
+              console.log('STATUS_LOADED EVENT FIRED');
+              $.viewerHTML5Player.init();
+            })
+          }*/
+        } else if (typeof $.viewerAction !== 'undefined') { // admin and OD studio
+          if (typeof $.viewerAction.init !== 'undefined') { // pages where vieweraction init is overriden
+            $.viewerAction.init();
+          }
+        }
+      }
+
+      return player;
     };
   }, []);
 
   useEffect(() => {
     if (isPlayerLoaded) {
-      if (typeof $ !== 'undefined') { // pages without jquery
-        if (typeof $.viewerAction !== 'undefined') { // admin and OD studio
-          if (typeof $.viewerAction.init !== 'undefined') { // pages where vieweraction init is overriden
-            $.viewerAction.init();
-          }
-        }
-        if (typeof $.viewerHTML5Player !== 'undefined') { // the hellish depths I go to to make the admin pages work.
-          $.viewerHTML5Player.init();
-        }
-      }
-
       log.info('Entering VideoPlayer React App.jsx');
       var player = new BitmovinPlayer(window.g_sPlayerDiv, window.g_sVideoId);
       window.g_player = player;
@@ -48,6 +66,26 @@ function App() {
         player.load(window.g_sEventTitle, window.g_sPath);
       }
       log.info('VideoPlayer loaded');
+
+      if (typeof $ !== 'undefined') { // pages without jquery
+        if (typeof $.viewerAction !== 'undefined') { // admin and OD studio
+          if (typeof $.viewerAction.init !== 'undefined') { // pages where vieweraction init is overriden
+            $.viewerAction.init();
+          }
+        }
+        if (typeof $.viewerHTML5Player !== 'undefined') { // the hellish depths I go to to make the admin pages work.
+          if (window.g_player) {
+            console.log('window.g_player DEFINED');
+            $.viewerHTML5Player.init();
+          } else {
+            console.log('window.g_player UNDEFINED -- ADDING EVENT LISTENER');
+            document.addEventListener(VideoPlayer.STATUS_LOADED, () => {
+              console.log('STATUS_LOADED EVENT FIRED');
+              $.viewerHTML5Player.init();
+            })
+          }
+        }
+      }
     } 
   }, [isPlayerLoaded, themeSettings]);
 
