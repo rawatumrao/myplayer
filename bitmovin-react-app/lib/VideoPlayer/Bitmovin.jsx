@@ -168,6 +168,20 @@ class BitmovinPlayer extends VideoPlayer {
             });
 
             log.debug(`PlayerEvent.Ready`);
+            // Create a new button for theme control
+            const themeButton = document.createElement('button');
+            themeButton.innerHTML = '🎨';  // You can use any icon or emoji here
+            themeButton.className = 'theme-button'; // Custom class for styling
+            themeButton.setAttribute('title', 'Change Player Theme'); // Set tooltip for button
+           // Add click event to toggle the theme
+            themeButton.addEventListener('click', this.toggleTheme.bind(this));
+
+            // Insert the theme button before the settings button
+            const settingsButton = document.getElementById("player-settings-button");
+            if (settingsButton) {
+                settingsButton.insertAdjacentElement('beforebegin', themeButton); // Adds the theme button before settings button
+            }
+            
             this.setStatus(VideoPlayer.STATUS_READY);
             const replayButton = document.getElementById("replay-button");
             if (replayButton) {
@@ -177,7 +191,7 @@ class BitmovinPlayer extends VideoPlayer {
             if (UnmuteButton) {
                 UnmuteButton.setAttribute('title', 'Mute');
             }
-            const settingsButton = document.getElementById("player-settings-button");
+           // const settingsButton = document.getElementById("player-settings-button");
             if (settingsButton) {
                 settingsButton.setAttribute('title', 'Settings');
             }
