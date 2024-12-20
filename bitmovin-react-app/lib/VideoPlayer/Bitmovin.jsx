@@ -19,25 +19,12 @@ class BitmovinPlayer extends VideoPlayer {
                 autoplay: true,
                 muted: false
             },
-            style: {
-                // Set styles dynamically using themeSettings
-                seekbarBackgroundColor: this.themeSettings.seekbarColor,
-                seekbarPlayedColor: this.themeSettings.seekbarPlayedColor,
-                volumeBarColor: this.themeSettings.volumeBarColor,
-                fontSize: this.themeSettings.fontSize,
-                fontColor: this.themeSettings.fontColor,
-            },
             ui: true,
         }
         this.player = new bitmovin.player.Player(this.playerElement, this.conf);
         let uiManager = new UIManager(this.player, defaultUiConfig);
-        this.applyTheme(); // Apply theme after player initialization
         this.setupEventListeners();
         this.setStatus(VideoPlayer.STATUS_INITALIZED);
-    }
-
-    applyTheme() {
-        super.applyTheme(); // Call parent method to apply general theme settings
     }
 
     play() {
@@ -46,6 +33,10 @@ class BitmovinPlayer extends VideoPlayer {
 
     pause() {
         log.debug('BitmovinPlayer::pause()');
+    }
+
+    applyTheme() {
+        log.debug("Applying theme to BitmovinPlayer (via new component)");
     }
 
     load(title, uri) {
@@ -226,6 +217,42 @@ class BitmovinPlayer extends VideoPlayer {
 
         })
     }
+
+    showControlsBar() {
+        const controlBar = document.getElementById("control-bar-container");
+        if (controlBar) {
+            controlBar.classList.remove('hideViewerElements');
+        }
+    }
+
+    hideControlsBar() {
+        const controlBar = document.getElementById("control-bar-container");
+        if (controlBar) {
+            controlBar.classList.add('hideViewerElements');
+        }
+    }
+
+    showSeekBar() {
+        const seekBar = document.getElementById("seek-bar-container");
+        if (seekBar) {
+            seekBar.classList.remove('hideViewerElements');
+        }
+    }
+
+    hideSeekBar() {
+        const seekBar = document.getElementById("seek-bar-container");
+        if (seekBar) {
+            seekBar.classList.add('hideViewerElements');
+        }
+    }
+
+    hidePlaybackSpeed() {
+        const videoSpeedSelect = document.getElementById("video-speed-selectbox");
+        if (videoSpeedSelect) {
+            videoSpeedSelect.classList.add('hideViewerElements');
+        }
+    }
+
 }
 
 export default BitmovinPlayer;
