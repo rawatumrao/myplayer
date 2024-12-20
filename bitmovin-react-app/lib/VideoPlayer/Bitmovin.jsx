@@ -267,6 +267,20 @@ class BitmovinPlayer extends VideoPlayer {
         }
     }
 
+    toggleTheme() {
+        const playerContainer = this.player.getContainer();
+        
+        if (document.body.classList.contains('dark-theme')) {
+            document.body.classList.remove('dark-theme');
+            playerContainer.style.backgroundColor = '#fff'; // Light theme background
+            playerContainer.style.color = '#000'; // Light theme text
+        } else {
+            document.body.classList.add('dark-theme');
+            playerContainer.style.backgroundColor = '#333'; // Dark theme background
+            playerContainer.style.color = '#fff'; // Dark theme text
+        }
+    }
+
 }
 
 export default BitmovinPlayer;
