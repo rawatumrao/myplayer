@@ -11,6 +11,9 @@ error on line 1 at column 5: error parsing attribute name
 Below is a rendering of the page up to the first error.
 
 data:image/svg+xml;charset=utf-8,%3Csvg+xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22+viewBox%3D%220+0+384+512%22%3E%3Cpath+fill%3D%22%23ppppp%22+d%3D%22M73+39c-14.8-9.1-33.4-9.4-48.5-.9S0+62.6+0+80L0+432c0+17.4+9.4+33.4+24.5+41.9s33.7+8.1+48.5-.9L361+297c14.3-8.7+23-24.2+23-41s-8.7-32.2-23-41L73+39z%22%2F%3E%3C%2Fsvg%3E
+Solved Play button:
+
+data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20384%20512%22%3E%3Cpath%20fill%3D%22%23ppppp%22%20d%3D%22M73%2039c-14.8-9.1-33.4-9.4-48.5-.9S0%2062.6%200%2080L0%20432c0%2017.4%209.4%2033.4%2024.5%2041.9s33.7%208.1%2048.5-.9L361%20297c14.3-8.7%2023-24.2%2023-41s-8.7-32.2-23-41L73%2039z%22%2F%3E%3C%2Fsvg%3E
 
 
 sound icon button
