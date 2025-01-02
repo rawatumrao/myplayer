@@ -39,80 +39,79 @@ export const settingsPanel = new SettingsPanel({
 
 //settingsPanel.getDomElement().css({ width: '1300px', height: '1300px' });
 
-export const defaultUiConfig = (themeSettings) => {
-    return new UIContainer({
-        components: [
-            new SubtitleOverlay(),
-            new BufferingOverlay(),
-            new CastStatusOverlay(),
-            new PlaybackToggleOverlay({
-                id: 'playback-toggle-button',
-                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-            }),
-            new ControlBar({
-                components: [
-                    settingsPanel,
-                    new Container({
-                        components: [
-                            new PlaybackTimeLabel(),
-                            new SeekBar({
-                                cssClasses: ['seekbar'],  // Apply dynamic styles for SeekBar
-                                style: {
-                                    backgroundColor: themeSettings.seekbarColor,  // Dynamic seekbar background color
-                                    progressColor: themeSettings.seekbarPlayedColor  // Dynamic progress color
-                                }
-                            })
-                        ]
-                    }),
-                    new Container({
-                        components: [
-                            new PlaybackToggleButton({
-                                id: 'playback-pause-button',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                            }),
-                            new ReplayButton({
-                                id: 'replay-button',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                            }),
-                            new VolumeToggleButton({
-                                id: 'volume-toggle-button',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                            }),
-                            new VolumeSlider({
-                                id: 'volume-slider',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class'],
-                                style: {
-                                    backgroundColor: themeSettings.volumeBarColor  // Apply dynamic volume bar color
-                                }
-                            }),
-                            new Spacer(),
-                            new Label({
-                                id: 'player-status-label',
-                                text: '',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class', 'status-label']
-                            }),
-                            new Spacer(),
-                            new PictureInPictureToggleButton(),
-                            new AirPlayToggleButton(),
-                            new CastToggleButton(),
-                            new SettingsToggleButton({
-                                settingsPanel: settingsPanel,
-                                id: 'player-settings-button',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                            }),
-                            new FullscreenToggleButton({
-                                id: 'fullscreen-button',
-                                cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                            })
-                        ],
-                        cssClasses: ['controlbar-bottom']
-                    })
-                ]
-            }),
-            new RecommendationOverlay(),
-            new ErrorMessageOverlay(),
-        ],
-        cssClasses: ['ui-skin-modern']
-    });
-};
 
+export const defaultUiConfig = new UIContainer({
+    components: [
+        new SubtitleOverlay(),
+        new BufferingOverlay(),
+        new CastStatusOverlay(),
+        new PlaybackToggleOverlay({
+            id: 'playback-toggle-button',
+            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+        }),
+        new ControlBar({
+            components: [
+                settingsPanel,
+                new Container({
+                    components: [
+                        new PlaybackTimeLabel({
+                            id: 'playback-time-label'
+                        }),
+                        new SeekBar({
+                            id: 'seek-bar-component'
+                        })
+                    ],
+                    id: 'seek-bar-container',
+                }),
+                new Container({
+                    components: [
+                        new PlaybackToggleButton({
+                            id: 'playback-pause-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),
+                        new ReplayButton({
+                            id: 'replay-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),
+                        new VolumeToggleButton({
+                            id: 'volume-toggle-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),
+                        new VolumeSlider({
+                            id: 'volume-slider',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),
+                        new Spacer(),
+                        new Label({
+                            id: 'player-status-label',
+                            text: '',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class', 'status-label']
+                        }),
+                        new Spacer(),
+                        /*new PlaybackSpeedSelectBox({
+                            id: 'speed-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),*/
+                        new PictureInPictureToggleButton(),
+                        new AirPlayToggleButton(),
+                        new CastToggleButton(),
+                        new SettingsToggleButton({
+                            settingsPanel: settingsPanel,
+                            id: 'player-settings-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        }),
+                        new FullscreenToggleButton({
+                            id: 'fullscreen-button',
+                            cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                        })
+                    ],
+                    id: 'control-bar-container',
+                    cssClasses: ['controlbar-bottom']
+                })
+            ]
+        }),
+        new RecommendationOverlay(),
+        new ErrorMessageOverlay(),
+    ],
+    cssClasses: ['ui-skin-modern']
+});
