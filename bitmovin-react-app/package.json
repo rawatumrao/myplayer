@@ -12,7 +12,7 @@
   "scripts": {
     "clean": "rm -rf dist && mkdir dist",
     "start": "vite",
-    "build": "npm run clean && vite build && node rename.cjs && cd /home/ubuntu/workspace_classic/Convey && ant -f web_deploy.xml -lib ./jar/ && cd /home/ubuntu/bitmovin/react-app/",
+    "build": "npm run clean && vite build && node rename.cjs && cd /home/ubuntu/workspace_classic/Convey && ant -f web_deploy.xml -lib ./jar/ && cd /home/ubuntu/bitmovin/bitmovin-react-app/",
     "test": "jest --watchAll"
   },
   "devDependencies": {
