@@ -2,21 +2,11 @@ import React, { useEffect, useState } from 'react';
 import Logger from '../lib/Logger';
 import VideoPlayer from '../lib/VideoPlayer/VideoPlayer';
 import BitmovinPlayer from '../lib/VideoPlayer/Bitmovin';
-import VideoPlayerTheme from '../lib/VideoPlayer/VideoPlayerTheme';
 
 const log = new Logger();
 
 function App() {
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
-  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
-
-  const [themeSettings, setThemeSettings] = useState({
-    seekbarColor: '#ff0000',
-    seekbarPlayedColor: '#00ff00',
-    volumeBarColor: '#ff6600',
-    fontSize: '16px',
-    fontColor: '#ffffff',
-  });
 
   useEffect(() => {
     window.loadPlayer = (playerDiv, videoId, eventTitle, streamPath, autoPlay) => {
@@ -59,7 +49,6 @@ function App() {
       var player = new BitmovinPlayer(window.g_sPlayerDiv, window.g_sVideoId);
       window.g_player = player;
       window.VideoPlayer = VideoPlayer;
-      player.updateTheme(themeSettings); // Apply the theme settings to the player
       if (window.isHiveMulticast === true) {
         window.loadHiveJs();
       } else {
@@ -87,7 +76,7 @@ function App() {
         }
       }
     } 
-  }, [isPlayerLoaded, themeSettings]);
+  }, [isPlayerLoaded]);
 
   useEffect(() => {
     window.loadHiveJs = () => {
@@ -122,24 +111,7 @@ function App() {
     };
   }, []);
 
-  const toggleSettingsVisibility = () => {
-    setIsSettingsVisible(!isSettingsVisible);
-  };
-
-  return (
-    <div>
-      {/* "Theme Controls" button */}
-      <button onClick={toggleSettingsVisibility}>PlayerThemeControls</button>
-
-      {/* Conditionally render the VideoPlayerTheme panel */}
-      {isSettingsVisible && (
-        <VideoPlayerTheme 
-          themeSettings={themeSettings} 
-          setThemeSettings={setThemeSettings} 
-        />
-      )}
-    </div>
-  );
+  return null;
 }
 
 export default App;
