@@ -8,3 +8,9 @@
 
 
 	WITH sanctioned_customer as (SELECT customer.customer_number, customer.gender, customer.occupation, customer.Applied_Loan_Amount_in_Lacs, sanction_data.Sanction_Amt_in_Lacs from customer join sanction_data on customer.Customer_Number = sanction_data.Customer_Number) SELECT gender, MAX(Applied_Loan_Amount_in_Lacs) as 'max_applied_amount', MIN(Applied_Loan_Amount_in_Lacs) as 'min_applied_amount', SUM(Applied_Loan_Amount_in_Lacs) as 'sum_applied_amount', AVG(Applied_Loan_Amount_in_Lacs) as 'avg_applied_amount', MAX(Sanction_Amt_in_Lacs) as 'max_sanctioned_amount', MIN(Sanction_Amt_in_Lacs) as 'min_sanctioned_amount', SUM(Sanction_Amt_in_Lacs) as 'sum_sanctioned_amount', AVG(Sanction_Amt_in_Lacs) as 'avg_sanctioned_amount' from sanctioned_customer group by gender;
+
+
+
+	<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512">
+  <path fill="#" d="M533.6 32.5C598.5 85.2 640 165.8 640 256s-41.5 170.7-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64v384c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64v-64c0-35.3 28.7-64 64-64h67.8l132.9-118.9c9.4-8.4 22.9-10.4 34.4-5.3z"/>
+</svg>
