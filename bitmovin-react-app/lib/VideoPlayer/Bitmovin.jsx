@@ -1,6 +1,5 @@
 import Logger from './../Logger';
 import VideoPlayer from './VideoPlayer';
-import svgData from './icons/customSvgData.json';
 import { defaultUiConfig } from '../../src/bitmovin/ui/config/defaultUiConfig';
 import { UIManager } from 'bitmovin-player-ui';
 
@@ -80,10 +79,6 @@ class BitmovinPlayer extends VideoPlayer {
         log.debug('BitmovinPlayer::setupEventListeners()');
         this.player.on(bitmovin.player.PlayerEvent.Play, (playEvent) => {
             log.debug(`PlayerEvent.Play`);
-            const pausebuttonstyle = document.querySelector('.bmpui-ui-playbacktogglebutton.bmpui-tagging-test-class.bmpui-globalmeet-custom-class.bmpui-on');
-            if(pausebuttonstyle){
-                pausebuttonstyle.style.backgroundImage = `url(${svgData.pause})`;
-            }
             this.setStatus(VideoPlayer.STATUS_PLAY);
             this.dispatchEvent(VideoPlayer.EVENT_PLAY, playEvent);
         });
@@ -91,10 +86,6 @@ class BitmovinPlayer extends VideoPlayer {
         this.player.on(bitmovin.player.PlayerEvent.Playing, (playingEvent) => {
             
             log.debug(`PlayerEvent.Playing`);
-            const pausebuttonstyle = document.querySelector('.bmpui-ui-playbacktogglebutton.bmpui-tagging-test-class.bmpui-globalmeet-custom-class.bmpui-on');
-            if(pausebuttonstyle){
-                pausebuttonstyle.style.backgroundImage = `url(${svgData.pause})`;
-            }
             this.setStatus(VideoPlayer.STATUS_PLAYING);
             const pauseButton = document.getElementById("playback-pause-button");
             if (pauseButton) {
@@ -107,10 +98,6 @@ class BitmovinPlayer extends VideoPlayer {
         this.player.on(bitmovin.player.PlayerEvent.Paused, (pausedEvent) => {
             
             log.debug(`PlayerEvent.Paused`);
-            const pausebuttonstyleoff = document.querySelector('.bmpui-ui-playbacktogglebutton.bmpui-tagging-test-class.bmpui-globalmeet-custom-class.bmpui-off');
-            if(pausebuttonstyleoff){
-                pausebuttonstyleoff.style.backgroundImage = `url(${svgData.play})`;
-            }
             this.setStatus(VideoPlayer.STATUS_PAUSED);
             const playButton = document.getElementById("playback-pause-button");
             if (playButton) {
@@ -122,9 +109,9 @@ class BitmovinPlayer extends VideoPlayer {
 
         this.player.on(bitmovin.player.PlayerEvent.Error, (errorEvent) => {
             log.debug(`PlayerEvent.Error`);
-            const errorMessage = document.getElementById("bmpui-id-42");
+            const errorMessage = document.querySelector('.bmpui-ui-errormessage-label')
             if (errorMessage) {
-                errorMessage.remove();
+                errorMessage.style.display = 'none';
                 console.log("The downloaded manifest is invalid -- SOURCE_MANIFEST_INVALID");
             } else {
                 this.setStatus(VideoPlayer.STATUS_ERROR);
@@ -137,11 +124,6 @@ class BitmovinPlayer extends VideoPlayer {
                    
             const unmuteButton = document.getElementById("volume-toggle-button");
             if (unmuteButton) {
-                // const volumebtnmute = document.querySelector('.bmpui-ui-volumetogglebutton.bmpui-muted') || document.querySelector('.bmpui-ui-volumetogglebutton.bmpui-unmuted[data-bmpui-volume-level-tens="0"]');
-                // if(volumebtnmute ){
-                //     volumebtnmute.style.backgroundImage = `url(${svgData.fullvolume})`;
-                // }  
-                unmuteButton.style.backgroundImage = `url(${svgData.fullvolume})`;
                 unmuteButton.setAttribute('title', 'Mute');
             }
         });
@@ -151,7 +133,6 @@ class BitmovinPlayer extends VideoPlayer {
             
             const MuteButton = document.getElementById("volume-toggle-button");
             if (MuteButton) {
-                MuteButton.style.backgroundImage = `url(${svgData.novolume})`;
                 MuteButton.setAttribute('title', 'Unmute');
             }
         });
@@ -161,10 +142,8 @@ class BitmovinPlayer extends VideoPlayer {
             const resizedButton = document.getElementById("fullscreen-button");
             if (resizedButton) {
                 if (resizedButton.classList.contains('bmpui-off')) {
-                    resizedButton.style.backgroundImage = `url(${svgData.normalscreen})`;
                   resizedButton.setAttribute('title', 'Full screen');
                 } else if (resizedButton.classList.contains('bmpui-on')) {
-                    resizedButton.style.backgroundImage = `url(${svgData.fullscreen})`;
                   resizedButton.setAttribute('title', 'Exit full screen');
                 }
             }
@@ -179,46 +158,31 @@ class BitmovinPlayer extends VideoPlayer {
                 let testId = element.className.split(/\s+/).find(cls => cls.startsWith('bmpui-'));
                 element.setAttribute('data-testid', testId);
             });
-            const pausebuttonstyle = document.querySelector('.bmpui-ui-playbacktogglebutton.bmpui-tagging-test-class.bmpui-globalmeet-custom-class.bmpui-on');
-            if(pausebuttonstyle){
-                pausebuttonstyle.style.backgroundImage = `url(${svgData.pause})`;
+            const volumemarkervalStyle = document.querySelector('.bmpui-ui-volumeslider .bmpui-seekbar .bmpui-seekbar-playbackposition-marker');
+            const volumeplaybackposStyle = document.querySelector('.bmpui-ui-volumeslider .bmpui-seekbar .bmpui-seekbar-playbackposition');
+            const playbackpositionStyle = document.querySelector('.bmpui-seekbar-playbackposition');
+            const markerStyle = document.querySelector('.bmpui-seekbar-playbackposition-marker');
+            const activeContent = document.querySelector(".ui-state-active");
+            if (activeContent) { 
+                const color = window.getComputedStyle(activeContent).backgroundColor;
+                volumemarkervalStyle.style.backgroundColor = color;
+                volumeplaybackposStyle.style.backgroundColor = color;
+                playbackpositionStyle.style.backgroundColor = color;
+                markerStyle.style.backgroundColor = color;
+                markerStyle.style.border='.1875em solid ' + color;
             }
-          
-            const volumemarkerval = document.querySelector('.bmpui-ui-volumeslider .bmpui-seekbar .bmpui-seekbar-playbackposition-marker');
-            if(volumemarkerval){
-                volumemarkerval.style.backgroundColor='red';
-            }
-            
-            const volumeplaybackpos = document.querySelector('.bmpui-ui-volumeslider .bmpui-seekbar .bmpui-seekbar-playbackposition');
-            if(volumeplaybackpos){
-                volumeplaybackpos.style.backgroundColor='red';
-            }
-
-            const playbackposition = document.querySelector('.bmpui-seekbar-playbackposition');
-            if(playbackposition){
-                playbackposition.style.backgroundColor='red';
-            }
-            const marker = document.querySelector('.bmpui-seekbar-playbackposition-marker');
-            if(marker){
-                marker.style.backgroundColor='rgba(256, 0, 0, .7)';
-                marker.style.border='.1875em solid #e10417';
-            }
-
             log.debug(`PlayerEvent.Ready`);
             this.setStatus(VideoPlayer.STATUS_READY);
             const replayButton = document.getElementById("replay-button");
-            if (replayButton) {
-                replayButton.style.backgroundImage = `url(${svgData.refresh})`;   
+            if (replayButton) { 
                 replayButton.setAttribute('title', 'Refresh');
             }
             const UnmuteButton = document.getElementById("volume-toggle-button");
             if (UnmuteButton) {
-                UnmuteButton.style.backgroundImage = `url(${svgData.fullvolume})`;
                 UnmuteButton.setAttribute('title', 'Mute');
             }
             const settingsButton = document.getElementById("player-settings-button");
             if (settingsButton) {
-                settingsButton.style.backgroundImage = `url(${svgData.setting})`;
                 settingsButton.setAttribute('title', 'Settings');
             }
             const volumeButton = document.getElementById("volume-slider");
@@ -227,7 +191,6 @@ class BitmovinPlayer extends VideoPlayer {
             }
             const resizeButton = document.getElementById("fullscreen-button");
             if (resizeButton) {
-                resizeButton.style.backgroundImage = `url(${svgData.fullscreen})`;
                 resizeButton.setAttribute('title', 'Full screen');
             }
             this.dispatchEvent(VideoPlayer.EVENT_READY, readyEvent);
@@ -305,6 +268,17 @@ class BitmovinPlayer extends VideoPlayer {
         const playbackTime = document.getElementById("playback-time-label");
         if (playbackTime) {
             playbackTime.classList.add('hideViewerElements');
+        }
+    }
+
+    hidePlaybackToggleButton() {
+        const playPauseButton = document.getElementById("playback-pause-button");
+        if (playPauseButton) {
+            playPauseButton.classList.add('hideViewerElements');
+        }
+        const playbackToggle = document.getElementById("playback-toggle-button");
+        if (playbackToggle) {
+            playbackToggle.classList.add('hideViewerElements');
         }
     }
 
