@@ -1,0 +1,20 @@
+
+@umrao.rawat
+ This is how to enable FontAwesome icons we licensed using package manager
+
+Configure access for your Project
+To authenticate when using npm, create a .npmrc file in the root of your project (or wherever your package.json file lives). Then add the following snippet:
+@awesome.me:registry=https://npm.fontawesome.com/
+@fortawesome:registry=https://npm.fontawesome.com/
+//npm.fontawesome.com/:_authToken=5BE4CEF5-A20F-4843-9B6E-82AF033C4212
+Install Icons in your Project
+Once access is set up, you can now install your Font Awesome Kit as a package via npm.
+npm install --save '@awesome.me/kit-fdadaa89ad@latest'
+Updating your Package
+If you add, remove, or edit icons or styles in your Kit, you'll need to update your package to get the latest changes.
+npm update '@awesome.me/kit-fdadaa89ad'
+
+its pretty simple if you have any issues let me know
+:pray::skin-tone-6:
+
+
