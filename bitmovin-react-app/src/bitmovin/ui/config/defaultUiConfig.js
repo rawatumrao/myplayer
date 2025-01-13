@@ -1,4 +1,4 @@
-import { UIContainer, PlaybackToggleOverlay, ControlBar, Container, BufferingOverlay, PlaybackTimeLabel, SeekBar, VolumeToggleButton, VolumeSlider, Spacer, FullscreenToggleButton, SubtitleOverlay, PlaybackToggleButton, ReplayButton, Label, PlaybackSpeedSelectBox, SettingsToggleButton, SettingsPanel, PictureInPictureToggleButton, VideoQualitySelectBox, SettingsPanelItem, SettingsPanelPage, AudioQualitySelectBox, CastToggleButton, AirPlayToggleButton, CastStatusOverlay, RecommendationOverlay, ErrorMessageOverlay } from 'bitmovin-player-ui';
+import { UIContainer, PlaybackToggleOverlay, ControlBar, Container, BufferingOverlay, PlaybackTimeLabel, PlaybackTimeLabelMode, SeekBar, SeekBarLabel, VolumeToggleButton, VolumeSlider, Spacer, FullscreenToggleButton, SubtitleOverlay, PlaybackToggleButton, ReplayButton, Label, PlaybackSpeedSelectBox, SettingsToggleButton, SettingsPanel, PictureInPictureToggleButton, VideoQualitySelectBox, SettingsPanelItem, SettingsPanelPage, AudioQualitySelectBox, CastToggleButton, AirPlayToggleButton, CastStatusOverlay, RecommendationOverlay, ErrorMessageOverlay } from 'bitmovin-player-ui';
 
 const playbackSpeedSelectBox = new PlaybackSpeedSelectBox(
     {
@@ -55,13 +55,22 @@ export const defaultUiConfig = new UIContainer({
                 new Container({
                     components: [
                         new PlaybackTimeLabel({
-                            id: 'playback-time-label'
+                            id: 'playback-time-label',
+                            timeLabelMode: PlaybackTimeLabelMode.CurrentTime,
+                            hideInLivePlayback: true
                         }),
                         new SeekBar({
-                            id: 'seek-bar-component'
-                        })
+                            id: 'seek-bar-component',
+                            label: new SeekBarLabel()
+                        }),
+                        new PlaybackTimeLabel({
+                            id: 'playback-time-label',
+                            timeLabelMode: PlaybackTimeLabelMode.TotalTime,
+                            cssClasses: ['text-right']
+                        }),
                     ],
                     id: 'seek-bar-container',
+                    cssClasses: ['controlbar-top']
                 }),
                 new Container({
                     components: [
@@ -110,7 +119,6 @@ export const defaultUiConfig = new UIContainer({
                 })
             ]
         }),
-        new RecommendationOverlay(),
         new ErrorMessageOverlay(),
     ],
     cssClasses: ['ui-skin-modern']
