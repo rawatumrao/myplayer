@@ -6,77 +6,27 @@ import BitmovinPlayer from '../lib/VideoPlayer/Bitmovin';
 const log = new Logger();
 
 function App() {
-  const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
-
   useEffect(() => {
-    window.loadPlayer = (playerDiv, videoId, eventTitle, streamPath, autoPlay) => {
+    window.loadPlayer = (config) => {
       log.info('Entering VideoPlayer React App.jsx');
-      var player = new BitmovinPlayer(playerDiv, videoId);
+      var player = new BitmovinPlayer(config.playerElementId, config.eventId);
+     
       window.VideoPlayer = VideoPlayer;
+      
       if (window.isHiveMulticast === true) {
         window.loadHiveJs();
       } else {
-        player.load(eventTitle, streamPath);
+        player.load(config.title, config.streamPath);
       }
       log.info('VideoPlayer loaded');
 
-      if (typeof $ !== 'undefined') { // pages without jquery
-        if (typeof $.viewerHTML5Player !== 'undefined') { // the hellish depths I go to to make the admin pages work.
-          /*if (window.g_player) {
-            console.log('window.g_player DEFINED');
-            $.viewerHTML5Player.init();
-          } else {
-            console.log('window.g_player UNDEFINED -- ADDING EVENT LISTENER');
-            document.addEventListener(VideoPlayer.STATUS_LOADED, () => {
-              console.log('STATUS_LOADED EVENT FIRED');
-              $.viewerHTML5Player.init();
-            })
-          }*/
-        } else if (typeof $.viewerAction !== 'undefined') { // admin and OD studio
-          if (typeof $.viewerAction.init !== 'undefined') { // pages where vieweraction init is overriden
-            $.viewerAction.init();
-          }
-        }
+      if (config.autoplay = true) {
+        player.play();
       }
 
       return player;
     };
   }, []);
-
-  useEffect(() => {
-    if (isPlayerLoaded) {
-      log.info('Entering VideoPlayer React App.jsx');
-      var player = new BitmovinPlayer(window.g_sPlayerDiv, window.g_sVideoId);
-      window.g_player = player;
-      window.VideoPlayer = VideoPlayer;
-      if (window.isHiveMulticast === true) {
-        window.loadHiveJs();
-      } else {
-        player.load(window.g_sEventTitle, window.g_sPath);
-      }
-      log.info('VideoPlayer loaded');
-
-      if (typeof $ !== 'undefined') { // pages without jquery
-        if (typeof $.viewerAction !== 'undefined') { // admin and OD studio
-          if (typeof $.viewerAction.init !== 'undefined') { // pages where vieweraction init is overriden
-            $.viewerAction.init();
-          }
-        }
-        if (typeof $.viewerHTML5Player !== 'undefined') { // the hellish depths I go to to make the admin pages work.
-          if (window.g_player) {
-            console.log('window.g_player DEFINED');
-            $.viewerHTML5Player.init();
-          } else {
-            console.log('window.g_player UNDEFINED -- ADDING EVENT LISTENER');
-            document.addEventListener(VideoPlayer.STATUS_LOADED, () => {
-              console.log('STATUS_LOADED EVENT FIRED');
-              $.viewerHTML5Player.init();
-            })
-          }
-        }
-      }
-    } 
-  }, [isPlayerLoaded]);
 
   useEffect(() => {
     window.loadHiveJs = () => {
