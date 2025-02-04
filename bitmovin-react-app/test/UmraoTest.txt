@@ -18,3 +18,6 @@ its pretty simple if you have any issues let me know
 :pray::skin-tone-6:
 
 
+ This will happen regardless of whether or not the seekbar was previously hidden. To maintain the state of the seekbar display, a state variable will be created, called isSeekbarDisplayed. An event listener should be created that listens to the bitmovin event that is fired when a stream is loaded and reads isSeekbarDisplayed and either hides or shows the seekbar depending on it’s value.
+
+
