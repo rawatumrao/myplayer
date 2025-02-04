@@ -6,9 +6,10 @@ import { UIManager } from 'bitmovin-player-ui';
 const log = new Logger();
 
 class BitmovinPlayer extends VideoPlayer {
-    constructor(playerId, videoId) {
-        super(playerId, videoId);
-        this.conf = {
+    constructor(config) {
+        super(config);
+        
+        this.playerConfig = {
             key: '2994c75f-d1d0-46fa-abf0-d1d785f81e3a',
             analytics: {
                 key: '5a27f534-b907-4190-8244-9040a45ddfbb',
@@ -20,8 +21,20 @@ class BitmovinPlayer extends VideoPlayer {
                 muted: false
             },
             ui: true,
+            adaptationConfig: {
+              //intentionally set low so the first loaded bitrate will be the lowest available
+              maxStartupBitrate: 700000,
+              startupBitrate: 700000
+            }
         }
-        this.player = new bitmovin.player.Player(this.playerElement, this.conf);
+        
+        this.player = new bitmovin.player.Player(this.playerElement, this.playerConfig);
+        
+        let videoElement = document.getElementById(this.config.playerVideoElementId);
+        if (videoElement instanceof HTMLVideoElement) {
+          this.player.setVideoElement(videoElement);
+        }
+
         let uiManager = new UIManager(this.player, defaultUiConfig);
         this.setupEventListeners();
         this.setStatus(VideoPlayer.STATUS_INITALIZED);
@@ -37,15 +50,37 @@ class BitmovinPlayer extends VideoPlayer {
 
     load(title, uri) {
         this.setStatus(VideoPlayer.STATUS_LOADING);
+        let qualityLabelingFunction = typeof this.config.qualityLabelingFunction === 'function' ? this.config.qualityLabelingFunction : this.defaultQualityLabeling;
         var source = {
             title: title,
-            hls: uri
+            hls: uri,
+            labeling: {
+              hls: {
+                qualities: qualityLabelingFunction
+              }
+            }
         }
         this.player.load(source);
         log.debug(`BitmovinPlayer::load()`);
         log.debug(`Title: ${source.title}`);
         log.debug(`URI: ${source.hls}`);
         this.setStatus(VideoPlayer.STATUS_LOADED);
+    }
+
+    //Use live stream labeling logic if no custom function is provided.
+    defaultQualityLabeling(quality) {
+      let kbps = quality.bitrate / 1000;
+
+      if (kbps <= 830) {
+        return "270p";
+      }
+      if (kbps <= 1080) {
+        return "480p";
+      }
+      if (kbps <= 1980) {
+        return "720p";
+      }
+      return '1080p';
     }
 
     // resize player
@@ -150,6 +185,22 @@ class BitmovinPlayer extends VideoPlayer {
         });
 
         this.player.on(bitmovin.player.PlayerEvent.Ready, (readyEvent) => {
+            const targetElement = document.getElementById('playback-pause-button');
+            const refreshButton = document.getElementById('refresh-button');
+            if (targetElement && !refreshButton) {
+                const replayButton = document.createElement('button');
+                replayButton.id = 'refresh-button';
+                replayButton.title = 'Refresh';
+                replayButton.classList.add('bmpui-ui-replaybutton');
+                targetElement.parentNode.insertBefore(replayButton, targetElement.nextSibling);
+                const player = this.player;
+                replayButton.addEventListener('click', function() {
+                    const source = player.getSource();
+                    player.unload();
+                    player.load(source);
+                });
+            }
+
             const allElements = document.querySelectorAll('[class*="bmpui-"]');
             const filteredElements = Array.from(allElements).filter(el =>
                 el.className.split(/\s+/).some(cls => cls.startsWith('bmpui-'))
@@ -215,11 +266,28 @@ class BitmovinPlayer extends VideoPlayer {
                 //$(this.getVideoIDPound()).find(".vjs-status-display").text($.oViewerText.sts_stopped);
                 if (window.closeme === "function") {
                         window.closeme();
-                        console.log("TimeChanged - Current Stream has ended.");
                     }
             }
 
-        })
+        });
+
+        const isSeekBarDisplayedListener = (event) => {
+            
+            if (event.type === bitmovin.player.PlayerEvent.StreamSwitched) {
+                if(!this.isSeekBarDisplayed)
+                this.hideSeekBar();
+            } else if (event.type === bitmovin.player.PlayerEvent.Reconnected) {
+                if(!this.isSeekBarDisplayed)
+                this.hideSeekBar();
+            } else if (event.type === bitmovin.player.PlayerEvent.Disconnected) {
+                this.isSeekBarDisplayed = false;
+                this.player.seekbar.hide();
+            }
+        };
+
+        this.player.on(bitmovin.player.PlayerEvent.StreamSwitched, isSeekBarDisplayedListener);
+        this.player.on(bitmovin.player.PlayerEvent.Reconnected, isSeekBarDisplayedListener);
+        this.player.on(bitmovin.player.PlayerEvent.Disconnected, isSeekBarDisplayedListener);
     }
 
     showControls() {
@@ -246,6 +314,7 @@ class BitmovinPlayer extends VideoPlayer {
     hideSeekBar() {
         const seekBar = document.getElementById("seek-bar-component");
         if (seekBar) {
+            this.isSeekBarDisplayed = false;
             seekBar.classList.add('hideViewerElements');
         }
     }
@@ -279,6 +348,18 @@ class BitmovinPlayer extends VideoPlayer {
         const playbackToggle = document.getElementById("playback-toggle-button");
         if (playbackToggle) {
             playbackToggle.classList.add('hideViewerElements');
+        }
+    }
+    hideFullscreenToggleButton() {
+        const fullscreenButton = document.getElementById("fullscreen-button");
+        if (fullscreenButton) {
+            fullscreenButton.classList.add('hideViewerElements');
+        }
+    }
+    showFullscreenToggleButton() {
+        const fullscreenButton = document.getElementById("fullscreen-button");
+        if (fullscreenButton) {
+            fullscreenButton.classList.remove('hideViewerElements');
         }
     }
 
