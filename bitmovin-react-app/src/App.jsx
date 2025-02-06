@@ -9,7 +9,7 @@ function App() {
   useEffect(() => {
     window.loadPlayer = (config) => {
       log.info('Entering VideoPlayer React App.jsx');
-      var player = new BitmovinPlayer(config.playerElementId, config.eventId);
+      var player = new BitmovinPlayer(config);
      
       window.VideoPlayer = VideoPlayer;
       
