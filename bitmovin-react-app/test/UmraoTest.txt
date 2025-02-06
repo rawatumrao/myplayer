@@ -1,23 +1,102 @@
+class BitmovinPlayer extends VideoPlayer {
+    constructor(config) {
+        super(config);
 
-@umrao.rawat
- This is how to enable FontAwesome icons we licensed using package manager
+        this.isSeekbarDisplayed = true; // Default: Seekbar is shown
+        this.playerConfig = {
+            key: '2994c75f-d1d0-46fa-abf0-d1d785f81e3a',
+            analytics: {
+                key: '5a27f534-b907-4190-8244-9040a45ddfbb',
+                title: '',
+                videoId: this.videoId,
+            },
+            playback: {
+                autoplay: true,
+                muted: false
+            },
+            ui: true,
+            adaptationConfig: {
+              maxStartupBitrate: 700000,
+              startupBitrate: 700000
+            }
+        };
 
-Configure access for your Project
-To authenticate when using npm, create a .npmrc file in the root of your project (or wherever your package.json file lives). Then add the following snippet:
-@awesome.me:registry=https://npm.fontawesome.com/
-@fortawesome:registry=https://npm.fontawesome.com/
-//npm.fontawesome.com/:_authToken=5BE4CEF5-A20F-4843-9B6E-82AF033C4212
-Install Icons in your Project
-Once access is set up, you can now install your Font Awesome Kit as a package via npm.
-npm install --save '@awesome.me/kit-fdadaa89ad@latest'
-Updating your Package
-If you add, remove, or edit icons or styles in your Kit, you'll need to update your package to get the latest changes.
-npm update '@awesome.me/kit-fdadaa89ad'
+        this.player = new bitmovin.player.Player(this.playerElement, this.playerConfig);
+        let videoElement = document.getElementById(this.config.playerVideoElementId);
+        if (videoElement instanceof HTMLVideoElement) {
+            this.player.setVideoElement(videoElement);
+        }
 
-its pretty simple if you have any issues let me know
-:pray::skin-tone-6:
+        let uiManager = new UIManager(this.player, defaultUiConfig);
+        this.setupEventListeners();
+        this.setStatus(VideoPlayer.STATUS_INITALIZED);
+    }
+==================================
 
+setupEventListeners() {
+    log.debug('BitmovinPlayer::setupEventListeners()');
 
- This will happen regardless of whether or not the seekbar was previously hidden. To maintain the state of the seekbar display, a state variable will be created, called isSeekbarDisplayed. An event listener should be created that listens to the bitmovin event that is fired when a stream is loaded and reads isSeekbarDisplayed and either hides or shows the seekbar depending on it’s value.
+    // Maintain seekbar visibility when player is ready
+    this.player.on(bitmovin.player.PlayerEvent.Ready, () => {
+        log.debug(`BitmovinPlayer::Ready - Seekbar: ${this.isSeekbarDisplayed}`);
+        this.toggleSeekBar(this.isSeekbarDisplayed);
+    });
 
+    // Handle source load
+    this.player.on(bitmovin.player.PlayerEvent.SourceLoaded, () => {
+        log.debug(`BitmovinPlayer::SourceLoaded - Seekbar: ${this.isSeekbarDisplayed}`);
+        this.toggleSeekBar(this.isSeekbarDisplayed);
+    });
+
+    // Maintain seekbar state on stream switch
+    this.player.on(bitmovin.player.PlayerEvent.StreamSwitched, () => {
+        log.debug(`BitmovinPlayer::StreamSwitched - Seekbar: ${this.isSeekbarDisplayed}`);
+        this.toggleSeekBar(this.isSeekbarDisplayed);
+    });
+
+    // Handle reconnects
+    this.player.on(bitmovin.player.PlayerEvent.Reconnected, () => {
+        log.debug(`BitmovinPlayer::Reconnected - Seekbar: ${this.isSeekbarDisplayed}`);
+        this.toggleSeekBar(this.isSeekbarDisplayed);
+    });
+
+    // Hide seekbar on disconnect
+    this.player.on(bitmovin.player.PlayerEvent.Disconnected, () => {
+        log.debug(`BitmovinPlayer::Disconnected - Hiding Seekbar`);
+        this.isSeekbarDisplayed = false;
+        this.hideSeekBar();
+    });
+
+    // Additional existing event listeners...
+}
+========================
+
+toggleSeekBar(display) {
+    if (display) {
+        this.showSeekBar();
+    } else {
+        this.hideSeekBar();
+    }
+}
+
+==================
+
+showSeekBar() {
+    log.debug("BitmovinPlayer::showSeekBar()");
+    const seekBar = document.getElementById("seek-bar-component");
+    if (seekBar) {
+        seekBar.classList.remove('hideViewerElements');
+    }
+    this.isSeekbarDisplayed = true; // Update state
+}
+
+hideSeekBar() {
+    log.debug("BitmovinPlayer::hideSeekBar()");
+    const seekBar = document.getElementById("seek-bar-component");
+    if (seekBar) {
+        seekBar.classList.add('hideViewerElements');
+    }
+    this.isSeekbarDisplayed = false; // Update state
+}
+=========================
 
