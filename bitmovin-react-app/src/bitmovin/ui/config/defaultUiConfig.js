@@ -5,6 +5,11 @@ const playbackSpeedSelectBox = new PlaybackSpeedSelectBox(
         id: 'speed-select-box',
         cssClasses: ['tagging-test-class', 'globalmeet-custom-class', 'ui-playbackspeedselectbox'],
     });
+const customSeekBarLabel = new SeekBarLabel(
+    {
+        id: 'playback-time-seekbarlabel',
+        cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+    });
 
 playbackSpeedSelectBox.clearItems();
 
@@ -12,7 +17,7 @@ export const settingsPanel = new SettingsPanel({
     components: [
         new SettingsPanelPage({
             components: [
-                new SettingsPanelItem('Video Quality', new VideoQualitySelectBox(),
+                new SettingsPanelItem('Quality', new VideoQualitySelectBox({ getLabel: getQualityLabels }),
                     {
                         id: 'video-quality-selectbox',
                         cssClass: 'video-quality-selectbox',
@@ -24,12 +29,12 @@ export const settingsPanel = new SettingsPanel({
                         //cssClass: 'video-speed-selectbox', 
                         cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
                     }),
-                new SettingsPanelItem('Audio Quality', new AudioQualitySelectBox(),
-                    {
-                        id: 'audio-quality-selectbox',
-                        cssClass: 'audio-quality-selectbox',
-                        cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                    }),
+                // new SettingsPanelItem('Audio Quality', new AudioQualitySelectBox(),
+                //     {
+                //         id: 'audio-quality-selectbox',
+                //         cssClass: 'audio-quality-selectbox',
+                //         cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
+                //     }),
             ],
             //cssClasses: ['settings-panel-page-extended']
         })
@@ -61,7 +66,7 @@ export const defaultUiConfig = new UIContainer({
                         }),
                         new SeekBar({
                             id: 'seek-bar-component',
-                            label: new SeekBarLabel()
+                            label: customSeekBarLabel
                         }),
                         new PlaybackTimeLabel({
                             id: 'playback-time-label',
@@ -78,10 +83,10 @@ export const defaultUiConfig = new UIContainer({
                             id: 'playback-pause-button',
                             cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
                         }),
-                        new ReplayButton({
+                        /*new ReplayButton({
                             id: 'replay-button',
                             cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
-                        }),
+                        }),*/
                         new VolumeToggleButton({
                             id: 'volume-toggle-button',
                             cssClasses: ['tagging-test-class', 'globalmeet-custom-class']
@@ -123,3 +128,11 @@ export const defaultUiConfig = new UIContainer({
     ],
     cssClasses: ['ui-skin-modern']
 });
+
+var getQualityLabels = function (data) {
+    if (data.height <= 1440) {
+        return '1440p HD';
+    } else if (data.height <= 2160) {
+        return '2160p 4K';
+    }
+}
