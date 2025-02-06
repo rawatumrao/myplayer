@@ -19,9 +19,10 @@ class VideoPlayer {
     static EVENT_FINISHED = 'VideoPlayerEvent_Finished';    // Finished playback
     static EVENT_TIMECHANGED = 'VideoPlayerEvent_TimeChanged';
 
-    constructor(playerId, videoId) {
-        this.playerElement = document.getElementById(playerId);
-        this.videoId = videoId;
+    constructor(config) {
+        this.config = config;
+        this.playerElement = document.getElementById(config.playerElementId);
+        this.videoId = config.eventId;
         this.player = null;
         this.state = {
             status: this.STATUS_NONE
