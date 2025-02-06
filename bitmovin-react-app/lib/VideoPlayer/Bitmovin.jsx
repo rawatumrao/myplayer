@@ -272,13 +272,12 @@ class BitmovinPlayer extends VideoPlayer {
         });
 
         const isSeekBarDisplayedListener = (event) => {
-            
             if (event.type === bitmovin.player.PlayerEvent.StreamSwitched) {
-                if(!this.isSeekBarDisplayed)
-                this.hideSeekBar();
+                this.isSeekBarDisplayed = true;
+                this.player.seekbar.show();
             } else if (event.type === bitmovin.player.PlayerEvent.Reconnected) {
-                if(!this.isSeekBarDisplayed)
-                this.hideSeekBar();
+                this.isSeekBarDisplayed = true;
+                this.player.seekbar.show();
             } else if (event.type === bitmovin.player.PlayerEvent.Disconnected) {
                 this.isSeekBarDisplayed = false;
                 this.player.seekbar.hide();
@@ -314,7 +313,6 @@ class BitmovinPlayer extends VideoPlayer {
     hideSeekBar() {
         const seekBar = document.getElementById("seek-bar-component");
         if (seekBar) {
-            this.isSeekBarDisplayed = false;
             seekBar.classList.add('hideViewerElements');
         }
     }
@@ -363,6 +361,29 @@ class BitmovinPlayer extends VideoPlayer {
         }
     }
 
+    makeAudio() {
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      if (fullscreenButton) {
+        fullscreenButton.style.display = "none";
+      }
+  
+      const playerSettingsBtn = document.getElementById("player-settings-button");
+      if (playerSettingsBtn) {
+        playerSettingsBtn.style.visibility = "hidden";
+      }
+    }
+  
+    makeVideo() {
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      if (fullscreenButton) {
+        fullscreenButton.style.display = "block";
+      }
+  
+      const playerSettingsBtn = document.getElementById("player-settings-button");
+      if (playerSettingsBtn) {
+        playerSettingsBtn.style.visibility = "visible";
+      }
+    }
 }
 
 export default BitmovinPlayer;
