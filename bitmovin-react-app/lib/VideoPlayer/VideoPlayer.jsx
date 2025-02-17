@@ -1,4 +1,5 @@
 import Logger from './../Logger';
+import VideoPlayerEvents from './VideoPlayerEvents';
 import { defaultUiConfig } from '../../src/bitmovin/ui/config/defaultUiConfig';
 import { UIManager } from 'bitmovin-player-ui';
 
@@ -17,151 +18,47 @@ class VideoPlayer {
     static STATUS_STOPPED = 'stopped';          // video stopped by user
     static STATUS_FINISHED = 'finished';        // video finished playing
 
-    static EVENT_ERROR = 'VideoPlayerEvent_Error';
-    static EVENT_READY = 'VideoPlayerEvent_Ready';
-    static EVENT_PLAY = 'VideoPlayerEvent_Play';
-    static EVENT_PLAYING = 'VideoPlayerEvent_Playing';
-    static EVENT_PAUSED = 'VideoPlayerEvent_Paused';
-    static EVENT_FINISHED = 'VideoPlayerEvent_Finished';    // Finished playback
-    static EVENT_TIMECHANGED = 'VideoPlayerEvent_TimeChanged';
-
     constructor(config) {
-        this.config = config;
-        this.playerElement = document.getElementById(config.playerElementId);
-        this.videoId = config.eventId;
-        this.player = null;
-        this.state = {
-          status: this.STATUS_NONE
-        };
+      this.events = VideoPlayerEvents;
+      this.config = config;
+      this.playerElement = document.getElementById(config.playerElementId);
+      this.videoId = config.eventId;
+      this.player = null;
+      this.state = {
+        status: this.STATUS_NONE
+      };
 
-        this.isSeekbarDisplayed = true; // Default: Seekbar is shown
+      this.isSeekbarDisplayed = true; // Default: Seekbar is shown
 
-        this.playerConfig = {
-          key: '2994c75f-d1d0-46fa-abf0-d1d785f81e3a',
-          analytics: {
-            key: '5a27f534-b907-4190-8244-9040a45ddfbb',
-            title: '',
-            videoId: this.videoId,
-          },
-          playback: {
-            autoplay: true,
-            muted: false
-          },
-          ui: true,
-          adaptationConfig: {
-            //intentionally set low so the first loaded bitrate will be the lowest available
-            maxStartupBitrate: 700000,
-            startupBitrate: 700000
-          }
+      this.playerConfig = {
+        key: '2994c75f-d1d0-46fa-abf0-d1d785f81e3a',
+        analytics: {
+          key: '5a27f534-b907-4190-8244-9040a45ddfbb',
+          title: '',
+          videoId: this.videoId,
+        },
+        playback: {
+          autoplay: true,
+          muted: false
+        },
+        ui: {},
+        adaptationConfig: {
+          //intentionally set low so the first loaded bitrate will be the lowest available
+          maxStartupBitrate: 700000,
+          startupBitrate: 700000
         }
-        
-        this.player = new bitmovin.player.Player(this.playerElement, this.playerConfig);
-        
-        let videoElement = document.getElementById(this.config.playerVideoElementId);
-        if (videoElement instanceof HTMLVideoElement) {
-          this.player.setVideoElement(videoElement);
-        }
+      }
+      
+      this.player = new bitmovin.player.Player(this.playerElement, this.playerConfig);
+      
+      let videoElement = document.getElementById(this.config.playerVideoElementId);
+      if (videoElement instanceof HTMLVideoElement) {
+        this.player.setVideoElement(videoElement);
+      }
 
-        let uiManager = new UIManager(this.player, defaultUiConfig);
-        this.setupEventListeners();
-        this.setStatus(VideoPlayer.STATUS_INITALIZED);
-    }
-
-    createHive(playerId) {
-        console.log('createhive');
-        HiveConfig.ErrorMonitor.enabled = true;
-        var hiveConf = {
-            debugLevel: 'debug',
-            hiveTechOrder: ['HiveJava', 'HiveJS', 'StatsJS'],
-            onActiveSession: (session) => {
-                // showSnackbar(session)
-            },
-            onSessionStatechange: (stateChange) => {
-                // onSessionStateChange(statechange)}
-            },
-            HiveJS: {
-                onActiveSession: (session) => {
-                    // showRenderStats(session)
-                },
-                onError: (error) => {
-                    // onErrorCallback(error)
-                    console.log(`hive error: ${error}`);
-                    return true;
-                },
-                //renderStatsCallback: window.hiveRenderStatsCallback
-            }
-        }
-        window['plugin'] = new HiveHtml5(playerId, hiveConf);
-        HiveModule.enable(window['plugin'], this.player);
-
-        if (typeof this.createHivePlugin !== 'undefined') {
-            console.log(`hive createPlugin`);
-            if (Array.isArray(this.player)) {
-                window.plugin = this.createHivePlugin.apply(window, this.player);
-            } else {
-                window.plugin = this.createHivePlugin(this.player);
-            }
-            this.loadHiveSource(playerId, 'https', window.plugin);
-        } else {
-            console.log(`poopie`);
-        }
-    }
-
-    createHivePlugin(player) {
-        return window['plugin'];
-    }
-
-    loadHiveSource(playerId, protocol, plugin) {
-        console.log('loadHiveSource');
-        window.playerSrc = playerId;
-        window.protocol = protocol;
-        var key = protocol == 'dash_wowza' ? 'dash' : 'hls';
-        var ticketInfo = this.hiveTicketInfo(playerId);
-        var source = {};
-        this.player.unload();
-
-        if (ticketInfo) {
-            console.log(`Using Hive Ticket System`);
-            plugin.initSession(playerId)
-                .then((hiveSession) => {
-                    console.log(`hiveSession: ${hiveSession}`);
-                    source[key] = hiveSession.manifest;
-                    console.log(`hiveSource: ${source}`);
-                    this.player.load(source)
-                        .then(() => {
-                            console.log('Hive: loaded source');
-                        })
-                        .catch((e) => {
-                            console.log(`Hive: error loading source ${e}`);
-                        });
-                })
-        } else {
-            console.log(`No Hive Ticket.`);
-            source[key] = playerId;
-            this.player.load(source)
-                .then(() => {
-                    console.log('Hive: loaded source without Hive');
-                })
-                .catch((e) => {
-                    console.log(`Hive: error loading source without hive ${e}`);
-                })
-        }
-    }
-
-    hiveTicketInfo(ticket) {
-        var ticketInfo = ticket && typeof ticket === "string" ? ticket.match(/https:\/\/api(-test|-dev)?\.hivestreaming\.com\/v1\/events\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)/) : null;
-        if (ticketInfo) {
-            return {
-                test: !!ticketInfo[1],
-                partnerId: ticketInfo[2],
-                customerId: ticketInfo[3],
-                eventId: ticketInfo[4],
-                secret: ticketInfo[5]
-            }
-        } else if (ticket && ticket.jwt && ticket.videoId && ticket.manifest) {
-            return true;
-        }
-        return null;
+      let uiManager = new UIManager(this.player, defaultUiConfig);
+      this.setupEventListeners();
+      this.setStatus(VideoPlayer.STATUS_INITALIZED);
     }
 
     createEvent(event, data) {
@@ -173,12 +70,29 @@ class VideoPlayer {
         document.dispatchEvent(customEvent);
     }
 
-    play() {
-      this.player.play();
+    play(){
+      // TODO: this function needs to be redone.  Added this for now to fix max loop error
+      if (this.player.isPlaying()) {
+        return;
+      }else{
+          this.player.play();
+      }
+
+
+      // } else if (!this.isStreamLoaded()) {
+      //   if (!this.playTimeout) {
+      //     this.playTimeout = setTimeout(this.play(), 100);
+      //   }
+      // } else {
+      //   this.playTimeout = false;
+      //   this.player.play();
+      // }
     }
   
     pause() {
-      this.player.pause();
+      if (this.player.isPlaying()) {
+        this.player.pause();
+      }
     }
   
     load(uri, title) {
@@ -216,8 +130,8 @@ class VideoPlayer {
       return '1080p';
     }
 
-    getPlayer() {
-        return this.player;
+    getVideoPlayerEvents() {
+      return this.events;
     }
 
     getState() {
@@ -368,12 +282,20 @@ class VideoPlayer {
       }
     }
 
+    isStreamLoaded() {
+      return this.player.source != null;
+    }
+
+    isPlaying() {
+      return this.player.isPlaying();
+    }
+
     setupEventListeners() {
         log.debug('BitmovinPlayer::setupEventListeners()');
         this.player.on(bitmovin.player.PlayerEvent.Play, (playEvent) => {
             log.debug(`PlayerEvent.Play`);
             this.setStatus(VideoPlayer.STATUS_PLAY);
-            this.dispatchEvent(VideoPlayer.EVENT_PLAY, playEvent);
+            this.dispatchEvent(VideoPlayerEvents.EVENT_PLAY, playEvent);
         });
 
         this.player.on(bitmovin.player.PlayerEvent.Playing, (playingEvent) => {
@@ -384,7 +306,7 @@ class VideoPlayer {
             if (pauseButton) {
                 pauseButton.setAttribute('title', 'Pause');
             }
-            this.dispatchEvent(VideoPlayer.EVENT_PLAYING, playingEvent);
+            this.dispatchEvent(VideoPlayerEvents.EVENT_PLAYING, playingEvent);
             $.oVideoInfo.status = "Playing";
         });
 
@@ -396,7 +318,7 @@ class VideoPlayer {
             if (playButton) {
                 playButton.setAttribute('title', 'Play');
             }
-            this.dispatchEvent(VideoPlayer.EVENT_PAUSED, pausedEvent);
+            this.dispatchEvent(VideoPlayerEvents.EVENT_PAUSED, pausedEvent);
             $.oVideoInfo.status = "Paused";
         });
 
@@ -408,7 +330,7 @@ class VideoPlayer {
                 console.log("The downloaded manifest is invalid -- SOURCE_MANIFEST_INVALID");
             } else {
                 this.setStatus(VideoPlayer.STATUS_ERROR);
-                this.dispatchEvent(VideoPlayer.EVENT_ERROR, errorEvent);
+                this.dispatchEvent(VideoPlayerEvents.EVENT_ERROR, errorEvent);
             }   
         });
 
@@ -506,13 +428,13 @@ class VideoPlayer {
             if (resizeButton) {
                 resizeButton.setAttribute('title', 'Full screen');
             }
-            this.dispatchEvent(VideoPlayer.EVENT_READY, readyEvent);
+            this.dispatchEvent(VideoPlayerEvents.EVENT_READY, readyEvent);
         });
 
         this.player.on(bitmovin.player.PlayerEvent.PlaybackFinished, (playbackFinishedEvent) => {
             log.debug(`PlayerEvent.PlaybackFinished`);
             this.setStatus(VideoPlayer.STATUS_FINISHED);
-            this.dispatchEvent(VideoPlayer.EVENT_FINISHED, playbackFinishedEvent);
+            this.dispatchEvent(VideoPlayerEvents.EVENT_FINISHED, playbackFinishedEvent);
             if (typeof window.closeme === 'function') {
                 window.closeme();
                 console.log('PlaybackFinished - Current Stream has ended.');
@@ -530,7 +452,7 @@ class VideoPlayer {
                         window.closeme();
                     }
             }
-
+            this.dispatchEvent(VideoPlayerEvents.EVENT_TIMECHANGED, timeChanged);
         });
 
         // Maintain  seekbar visibility when source is loaded
