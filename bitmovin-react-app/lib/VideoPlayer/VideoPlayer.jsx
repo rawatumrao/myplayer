@@ -1,22 +1,3 @@
-let uiRoot = uiManager.getUIRoot();
-let controlBar = uiRoot.getChild('controlbar');
-
-if (controlBar) {
-  const replayButton = controlBar.getComponents().find(c => c instanceof bitmovin.playerui.ReplayButton);
-  
-  if (replayButton) {
-    replayButton.onClick.unsubscribeAll(); // Remove Bitmovin default replay logic
-
-    replayButton.onClick.subscribe(() => {
-      const currentTime = this.player.getCurrentTime();
-      localStorage.setItem('resumeTime', currentTime);
-      window.location.reload();
-    });
-
-    console.log('ReplayButton click behavior overridden to perform refresh with resume.');
-  }
-}
-
 import { Player, PlayerEvent } from 'bitmovin-player';
 import { I18n, i18n, UIManager } from 'bitmovin-player-ui';
 import { defaultUiConfig } from '../../src/bitmovin/ui/config/defaultUiConfig';
