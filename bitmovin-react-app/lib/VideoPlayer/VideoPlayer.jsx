@@ -1,9 +1,10 @@
-import Logger from './../Logger';
-import VideoPlayerEvents from './VideoPlayerEvents';
+import { Player, PlayerEvent } from 'bitmovin-player';
+import { I18n, i18n, UIManager } from 'bitmovin-player-ui';
 import { defaultUiConfig } from '../../src/bitmovin/ui/config/defaultUiConfig';
-import { UIManager } from 'bitmovin-player-ui';
+import VideoPlayerEvents from './VideoPlayerEvents';
+import Logger from './../Logger';
 
-const log = new Logger();
+const logger = new Logger();
 
 class VideoPlayer {
     static STATUS_NONE = null;                  // Inital state when loaded
@@ -27,9 +28,24 @@ class VideoPlayer {
       this.state = {
         status: this.STATUS_NONE
       };
+      this.volume = config.volume;
+      this.muted = config.muted;
+
+      // The position where the stream should be started.
+      this.startOffset = config.startOffset === undefined ? 0 : config.startOffset;
+
+      if (typeof config.refreshFunction === 'function') {
+        this.refreshFunction = config.refreshFunction;
+      }
 
       this.isSeekbarDisplayed = true; // Default: Seekbar is shown
-
+      var localizationConfig = {
+        language: 'gm',
+        vocabularies: {
+          gm:this.config.playerControls
+        }
+      };
+      
       this.playerConfig = {
         key: '2994c75f-d1d0-46fa-abf0-d1d785f81e3a',
         analytics: {
@@ -39,17 +55,20 @@ class VideoPlayer {
         },
         playback: {
           autoplay: true,
-          muted: false
+          muted: this.muted,
+          volume: this.volume,
         },
-        ui: {},
-        adaptationConfig: {
+        logs: {
+          level: config.logLevel
+        },
+        ui: false,
+        i18n: i18n.setConfig(localizationConfig),
+        adaptation: {
           //intentionally set low so the first loaded bitrate will be the lowest available
-          maxStartupBitrate: 700000,
-          startupBitrate: 700000
-        }
+          startupBitrate: 1000
+        },
       }
-      
-      this.player = new bitmovin.player.Player(this.playerElement, this.playerConfig);
+      this.player = new Player(this.playerElement, this.playerConfig);
       
       let videoElement = document.getElementById(this.config.playerVideoElementId);
       if (videoElement instanceof HTMLVideoElement) {
@@ -70,23 +89,18 @@ class VideoPlayer {
         document.dispatchEvent(customEvent);
     }
 
-    play(){
-      // TODO: this function needs to be redone.  Added this for now to fix max loop error
+    play() {
+      document.getElementById('playback-toggle-button').style.display = 'block';
+      document.getElementById('playback-pause-button').style.display = 'block';
+      
       if (this.player.isPlaying()) {
+        document.getElementById('playback-toggle-button').style.display = 'none';
         return;
-      }else{
-          this.player.play();
+      } else if (!this.isStreamLoaded()) {
+        setTimeout(() => this.play(), 100);
+      } else {
+        this.player.play();
       }
-
-
-      // } else if (!this.isStreamLoaded()) {
-      //   if (!this.playTimeout) {
-      //     this.playTimeout = setTimeout(this.play(), 100);
-      //   }
-      // } else {
-      //   this.playTimeout = false;
-      //   this.player.play();
-      // }
     }
   
     pause() {
@@ -97,6 +111,7 @@ class VideoPlayer {
   
     load(uri, title) {
       this.setStatus(VideoPlayer.STATUS_LOADING);
+
       let qualityLabelingFunction = typeof this.config.qualityLabelingFunction === 'function' ? this.config.qualityLabelingFunction : this.defaultQualityLabeling;
       let source = {
         title: (title === undefined) ? this.config.title : title,
@@ -107,11 +122,26 @@ class VideoPlayer {
           }
         }
       }
-      this.player.load(source).then((res) => this.setStatus(VideoPlayer.STATUS_LOADED)).catch((error) => console.error(error));
+
+      if (!this.isStreamLoaded()) {
+        // Add startOffset to source config
+        source.options = {startOffset: this.startOffset};
+      }
+      logger.info("VideoPlayer.load: isStreamLoaded=" + this.isStreamLoaded() + " sourceConfig=" + JSON.stringify(source));
+
+      this.player.load(source).then((res) => this.setStatus(VideoPlayer.STATUS_LOADED)).catch((error) => this.playerLoadErrorHandler(error));
+
       this.source = source.hls;
-      log.debug(`BitmovinPlayer::load()`);
-      log.debug(`Title: ${source.title}`);
-      log.debug(`URI: ${source.hls}`);
+      logger.debug(`BitmovinPlayer::load()`);
+      logger.debug(`Title: ${source.title}`);
+      logger.debug(`URI: ${source.hls}`);
+    }
+
+    playerLoadErrorHandler(error) {
+      logger.warn("playerLoadErrorHandler; code=" + error.code + " name=" + error.name + " message=" + error.message 
+                    + " data=" + JSON.stringify(error.data));
+
+      this.dispatchEvent(VideoPlayerEvents.EVENT_SOURCE_LOAD_ERROR, error);
     }
 
     //Use live stream labeling logic if no custom function is provided.
@@ -166,7 +196,7 @@ class VideoPlayer {
     }
 
     setPosition(position) {
-
+      this.player.seek(position);
     }
 
     getPosition() {
@@ -258,6 +288,81 @@ class VideoPlayer {
         }
     }
 
+    hideAudioBackupToggleButton() {
+      const audioToggleButton = document.getElementById("toggleAudio");
+      if (audioToggleButton) {
+        audioToggleButton.classList.add('hideViewerElements');
+        //audioBackupToggleButton.classList.add("ui-helper-hidden");
+      }
+  }
+
+    showAudioBackupToggleButton() {
+      const audioToggleButton = document.getElementById("toggleAudio");
+      if (audioToggleButton) {
+        audioToggleButton.classList.remove('hideViewerElements');
+        //audioBackupToggleButton.classList.remove("ui-helper-hidden");
+      }
+    }
+
+    makeUserAudioBackup() {
+      // userAudioBackup is a LiveStudio setting for encoder events that allows
+      // viewers to switch to a backup audio stream.
+
+      logger.debug("makeUserAudioBackup");
+
+      /*
+      const audioBackupToggleButton = document.getElementById("toggleAudio");
+      if (audioBackupToggleButton) {
+        audioBackupToggleButton.querySelector('span').innerText = "Switch to Video Stream";
+      }
+      */
+
+      //audioBackupToggleButton.classList.remove("ui-helper-hidden");
+
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      if (fullscreenButton) {
+        fullscreenButton.style.display = "none";
+      }
+
+      // make the control bar visible so that user can switch back to video
+      const controlBar = document.getElementById("ui-container-controlbar");
+      if (controlBar) {
+        controlBar.style.display = "block";
+      }
+
+      //this.showControls();
+      this.hidePlaybackSpeed();
+      this.hideQualitySelectDropdown();
+    }
+
+    makeUserAudioBackupLoadError() {
+      // userAudioBackup is a LiveStudio setting for encoder events that allows
+      // viewers to switch to a backup audio stream.
+
+      logger.debug("makeUserAudioBackupLoadError");
+
+      const fullscreenButton = document.getElementById("fullscreen-button");
+      if (fullscreenButton) {
+        fullscreenButton.style.display = "none";
+      }
+
+      // hide the bitmovin tv noise canvas displayed when a load stream fails
+      const bmpuiId43 = document.getElementById("bmpui-id-43");
+      if (bmpuiId43) {
+        bmpuiId43.style.display = "none";
+      }
+
+      // make the control bar visible so that user can switch back to video
+      const controlBar = document.getElementById("ui-container-controlbar");
+      if (controlBar) {
+        controlBar.style.display = "block";
+      }
+
+      //this.showControls();
+      this.hidePlaybackSpeed();
+      this.hideQualitySelectDropdown();
+    }
+
     makeAudio() {
       const fullscreenButton = document.getElementById("fullscreen-button");
       if (fullscreenButton) {
@@ -283,105 +388,163 @@ class VideoPlayer {
     }
 
     isStreamLoaded() {
-      return this.player.source != null;
+      return this.player.getSource() != null;
     }
 
     isPlaying() {
       return this.player.isPlaying();
     }
 
+    isPaused() {
+      return this.player.isPaused();
+    }
+
+    getDuration() {
+      return this.player.getDuration();
+    }
+
+    showQualitySelectDropdown() {
+      const videoQualitySelect = document.getElementById("video-quality-selectbox");
+      if (videoQualitySelect) {
+        videoQualitySelect.classList.remove('hideViewerElements');
+      }
+    }
+
+    hideQualitySelectDropdown() {
+      const videoQualitySelect = document.getElementById("video-quality-selectbox");
+      if (videoQualitySelect) {
+        videoQualitySelect.classList.add('hideViewerElements');
+      }
+    }
+
     setupEventListeners() {
-        log.debug('BitmovinPlayer::setupEventListeners()');
-        this.player.on(bitmovin.player.PlayerEvent.Play, (playEvent) => {
-            log.debug(`PlayerEvent.Play`);
+        logger.debug('BitmovinPlayer::setupEventListeners()');     
+
+        this.player.on(PlayerEvent.Play, (playEvent) => {
+            logger.debug(`PlayerEvent.Play`);
             this.setStatus(VideoPlayer.STATUS_PLAY);
             this.dispatchEvent(VideoPlayerEvents.EVENT_PLAY, playEvent);
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Playing, (playingEvent) => {
+        this.player.on(PlayerEvent.Playing, (playingEvent) => {
             
-            log.debug(`PlayerEvent.Playing`);
+            logger.debug(`PlayerEvent.Playing`);
             this.setStatus(VideoPlayer.STATUS_PLAYING);
             const pauseButton = document.getElementById("playback-pause-button");
             if (pauseButton) {
-                pauseButton.setAttribute('title', 'Pause');
+                pauseButton.setAttribute('title', this.config.playerControls.pause);
             }
             this.dispatchEvent(VideoPlayerEvents.EVENT_PLAYING, playingEvent);
-            $.oVideoInfo.status = "Playing";
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Paused, (pausedEvent) => {
+        this.player.on(PlayerEvent.Paused, (pausedEvent) => {
             
-            log.debug(`PlayerEvent.Paused`);
+            logger.debug(`PlayerEvent.Paused`);
             this.setStatus(VideoPlayer.STATUS_PAUSED);
             const playButton = document.getElementById("playback-pause-button");
             if (playButton) {
-                playButton.setAttribute('title', 'Play');
+                playButton.setAttribute('title', this.config.playerControls.play);
             }
             this.dispatchEvent(VideoPlayerEvents.EVENT_PAUSED, pausedEvent);
-            $.oVideoInfo.status = "Paused";
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Error, (errorEvent) => {
-            log.debug(`PlayerEvent.Error`);
+        this.player.on(PlayerEvent.Error, (errorEvent) => {
+            logger.debug(`PlayerEvent.Error`);
             const errorMessage = document.querySelector('.bmpui-ui-errormessage-label')
             if (errorMessage) {
                 errorMessage.style.display = 'none';
-                console.log("The downloaded manifest is invalid -- SOURCE_MANIFEST_INVALID");
+                logger.warn("The downloaded manifest is invalid -- SOURCE_MANIFEST_INVALID");
             } else {
                 this.setStatus(VideoPlayer.STATUS_ERROR);
                 this.dispatchEvent(VideoPlayerEvents.EVENT_ERROR, errorEvent);
             }   
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Unmuted, (unmuteEvent) => {
-            log.debug(`PlayerEvent.Unmuted`);
+        this.player.on(PlayerEvent.Unmuted, (unmuteEvent) => {
+            logger.debug(`PlayerEvent.Unmuted`);
                    
             const unmuteButton = document.getElementById("volume-toggle-button");
             if (unmuteButton) {
-                unmuteButton.setAttribute('title', 'Mute');
+                unmuteButton.setAttribute('title', this.config.playerControls['settings.audio.mute']);
             }
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Muted, (muteEvent) => {
-            log.debug(`PlayerEvent.Muted`);
+        this.player.on(PlayerEvent.Muted, (muteEvent) => {
+            logger.debug(`PlayerEvent.Muted`);
             
             const MuteButton = document.getElementById("volume-toggle-button");
             if (MuteButton) {
-                MuteButton.setAttribute('title', 'Unmute');
+                MuteButton.setAttribute('title', this.config.playerControls['settings.audio.unmute']);
             }
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.PlayerResized, (resizedEvent) => {
-            log.debug(`PlayerEvent.Resized`);
+        this.player.on(PlayerEvent.PlayerResized, (resizedEvent) => {
+            logger.debug(`PlayerEvent.Resized`);
             const resizedButton = document.getElementById("fullscreen-button");
             if (resizedButton) {
                 if (resizedButton.classList.contains('bmpui-off')) {
-                  resizedButton.setAttribute('title', 'Full screen');
+                  resizedButton.setAttribute('title', this.config.playerControls.fullscreen);
                 } else if (resizedButton.classList.contains('bmpui-on')) {
-                  resizedButton.setAttribute('title', 'Exit full screen');
+                  resizedButton.setAttribute('title', this.config.playerControls.exitfullscreen);
                 }
             }
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.Ready, (readyEvent) => {
+        this.player.on(PlayerEvent.Ready, (readyEvent) => {
+
             //maintain seekbar visibility when player is ready
-            log.debug(`BitmovinPlayer::Ready - Seekbar: ${this.isSeekbarDisplayed}`);
+            logger.debug(`BitmovinPlayer::Ready - Seekbar: ${this.isSeekbarDisplayed}`);
             this.toggleSeekBar(this.isSeekbarDisplayed);
+            
+            const PlayPauseButton = document.getElementById('playback-pause-button');
+            
+            if (PlayPauseButton) {
+                if (PlayPauseButton.classList.contains('bmpui-off')) {
+                  PlayPauseButton.setAttribute('title', this.config.playerControls.play);
+                } else if (PlayPauseButton.classList.contains('bmpui-on')) {
+                  PlayPauseButton.setAttribute('title', this.config.playerControls.pause);
+                }
+            }
 
             const targetElement = document.getElementById('playback-pause-button');
-            const refreshButton = document.getElementById('refresh-button');
+            const refreshButton = document.getElementById("refresh-button");
+            if (refreshButton) {
+                refreshButton.setAttribute('title', this.config.playerControls.replay);
+             }
+            const UnmuteButton = document.getElementById("volume-toggle-button");
+            if (UnmuteButton) {
+                if (this.config.muted) {
+                  UnmuteButton.setAttribute('title', this.config.playerControls['settings.audio.unmute']);
+                } else {
+                  UnmuteButton.setAttribute('title', this.config.playerControls['settings.audio.mute']);
+                }
+            }
+            const settingsButton = document.getElementById("player-settings-button");
+            if (settingsButton) {
+                settingsButton.setAttribute('title', this.config.playerControls.settings);
+            }
+            const volumeButton = document.getElementById("volume-slider");
+            if (volumeButton) {
+                volumeButton.setAttribute('title', this.config.playerControls['settings.audio.volume']);
+            }
+            const resizeButton = document.getElementById("fullscreen-button");
+            if (resizeButton) {
+                resizeButton.setAttribute('title', this.config.playerControls.fullscreen);
+            }
+            
             if (targetElement && !refreshButton) {
                 const replayButton = document.createElement('button');
                 replayButton.id = 'refresh-button';
-                replayButton.title = 'Refresh';
+                replayButton.title = this.config.playerControls.replay;
                 replayButton.classList.add('bmpui-ui-replaybutton');
                 targetElement.parentNode.insertBefore(replayButton, targetElement.nextSibling);
                 const player = this.player;
-                replayButton.addEventListener('click', function() {
-                    const source = player.getSource();
-                    player.unload();
-                    player.load(source);
+                replayButton.addEventListener('click', () => {
+                  if (typeof this.refreshFunction === 'function') {
+                    this.refreshFunction(this.getSource());
+                  } else {
+                    this.player.load(this.player.getSource());
+                  }
                 });
             }
 
@@ -406,33 +569,48 @@ class VideoPlayer {
                 markerStyle.style.backgroundColor = color;
                 markerStyle.style.border='.1875em solid ' + color;
             }
-            log.debug(`PlayerEvent.Ready`);
+            logger.debug(`PlayerEvent.Ready`);
             this.setStatus(VideoPlayer.STATUS_READY);
-            const replayButton = document.getElementById("replay-button");
-            if (replayButton) { 
-                replayButton.setAttribute('title', 'Refresh');
-            }
-            const UnmuteButton = document.getElementById("volume-toggle-button");
-            if (UnmuteButton) {
-                UnmuteButton.setAttribute('title', 'Mute');
-            }
-            const settingsButton = document.getElementById("player-settings-button");
-            if (settingsButton) {
-                settingsButton.setAttribute('title', 'Settings');
-            }
-            const volumeButton = document.getElementById("volume-slider");
-            if (volumeButton) {
-                volumeButton.setAttribute('title', 'Volume');
-            }
-            const resizeButton = document.getElementById("fullscreen-button");
-            if (resizeButton) {
-                resizeButton.setAttribute('title', 'Full screen');
-            }
+            
+            // hide full screen button on Mac OS and ios
+            // if (this.config.isPreSimLive || this.config.mode == "prelive" || this.config.mode == "live") {
+              if(this.config.OS_PLATFORM === 'iOS'){
+                 document.getElementById("fullscreen-button").style.display = 'none';
+              }
+            // }
+
             this.dispatchEvent(VideoPlayerEvents.EVENT_READY, readyEvent);
+            const waitForSubtitle = setInterval(() => {
+              const subtitleOverlay = document.querySelector('.bmpui-ui-subtitle-overlay');
+              if(subtitleOverlay){
+                clearInterval(waitForSubtitle);
+                const observer = new MutationObserver(mutations => {
+                   mutations.forEach(mutation => {
+                      mutation.addedNodes.forEach(node => {
+                        if(node.nodeType === 1 && node.classList.contains('bmpui-ui-subtitle-label')){
+                          node.style.removeProperty('left');
+                          node.style.removeProperty('width');
+                        }
+                        if(node.querySelectorAll){
+                          const innerLabels= node.querySelectorAll('.bmpui-ui-subtitle-label');
+                          innerLabels.forEach(label => {
+                                label.style.removeProperty('left');
+                                label.style.removeProperty('width');
+                            });
+                        }
+                       });
+                    });
+                  });
+                  observer.observe(document.body, {
+                    childList: true,
+                    subtree: true
+                  });
+              }
+            },100);
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.PlaybackFinished, (playbackFinishedEvent) => {
-            log.debug(`PlayerEvent.PlaybackFinished`);
+        this.player.on(PlayerEvent.PlaybackFinished, (playbackFinishedEvent) => {
+            logger.debug(`PlayerEvent.PlaybackFinished`);
             this.setStatus(VideoPlayer.STATUS_FINISHED);
             this.dispatchEvent(VideoPlayerEvents.EVENT_FINISHED, playbackFinishedEvent);
             if (typeof window.closeme === 'function') {
@@ -443,29 +621,81 @@ class VideoPlayer {
             }
         });
 
-        this.player.on(bitmovin.player.PlayerEvent.TimeChanged, (timeChanged) => {
-            //log.debug(`PlayerEvent.TimeChanged ${timeChanged}`);
-            $.oVideoInfo.currentPosition = timeChanged.time;
-            if (!window.playerOptions.isODStudio && this.player.getDuration() > 1 && (this.player.currentTime() >= (this.player.getDuration() - 0.3))) {
-                //$(this.getVideoIDPound()).find(".vjs-status-display").text($.oViewerText.sts_stopped);
-                if (window.closeme === "function") {
-                        window.closeme();
-                    }
-            }
+        this.player.on(PlayerEvent.TimeChanged, (timeChanged) => {
             this.dispatchEvent(VideoPlayerEvents.EVENT_TIMECHANGED, timeChanged);
         });
 
         // Maintain  seekbar visibility when source is loaded
-        this.player.on(bitmovin.player.PlayerEvent.SourceLoaded, ()=>{
-            //log.debug(`BitmovinPlayer::SourceLoaded - Seekbar:${this.isSeekBarDisplayed}`);
-            this.toggleSeekBar(this.isSeekBarDisplayed);
+        this.player.on(PlayerEvent.SourceLoaded, ()=>{
+            //logger.debug(`BitmovinPlayer::SourceLoaded - Seekbar:${this.isSeekBarDisplayed}`);
+          this.toggleSeekBar(this.isSeekBarDisplayed);
+          if (this.player.getAvailableVideoQualities().length <= 1) {
+            this.hideQualitySelectDropdown();
+          } else {
+            this.showQualitySelectDropdown();
+          }
+
+          var vtt_captions = this.config.vtt;
+          if (!((this.config.isPreSimLive) || this.config.mode == "prelive")) {
+            for (let i = 0; i < vtt_captions.length; i++) {
+              this.player.subtitles.add(vtt_captions[i]);
+            }
+          }
         });
         // Detect when playback resumes after buffering (similar to reconnect)
-        this.player.on(bitmovin.player.PlayerEvent.StallEnded, ()=>{
-            //log.debug(`BitmovinPlayer::StallEnded - Seekbar:${this.isSeekBarDisplayed}`);
+        this.player.on(PlayerEvent.StallEnded, ()=>{
+            //logger.debug(`BitmovinPlayer::StallEnded - Seekbar:${this.isSeekBarDisplayed}`);
             this.toggleSeekBar(this.isSeekBarDisplayed);
         });
+    
+        this.player.on("cueenter", function (event) {
+        });
+
+        this.player.on(PlayerEvent.SubtitleAdded, (playEvent) => {
+          logger.debug(`PlayerEvent.SubtitleAdded`);
+
+          try{
+            // Hide CC1 on iOS and Mac OS (in some situations)
+            if(this.config.OS_PLATFORM === 'iOS' || this.config.OS_PLATFORM === 'Mac OS'){
+              setTimeout(function(){
+                // This will trigger for Safari on IOS when there is a added CC1 captions and off options only
+                const SUBTITLE_SELECTBOX = document.getElementsByClassName("bmpui-ui-subtitleselectbox")[0];
+
+                if(SUBTITLE_SELECTBOX.querySelectorAll('option').length === 2 && SUBTITLE_SELECTBOX.querySelectorAll('option')[0].value === "CC1")
+                  document.getElementById('video-subtitle-selectbox').style.display = 'none';
+              }, 1000);
+            }
+          }catch (err){
+            // can't find element
+          }
+
+          try{
+            // Hide CC1 on Mac OS
+            if(this.config.OS_PLATFORM === 'Mac OS' || this.config.OS_PLATFORM === 'iOS'){
+              const SUBTITLES_LIST = this.player.subtitles.list();
+
+              SUBTITLES_LIST.forEach(elem => {
+                if(elem.id === "CC1"){
+                  this.player.subtitles.remove(elem.id);
+                }
+              });
+            }
+          }catch (err){
+            // subtitles.list() is undefined
+          }
+      });
+
+      // Add click handler for the userAudioBackup toggle button in the settings panel
+      const audioBackupToggleButton = document.getElementById("toggleAudio");
+
+      if (audioBackupToggleButton) {
+        let that = this;
+        audioBackupToggleButton.addEventListener('click', function() {
+          that.dispatchEvent(VideoPlayerEvents.EVENT_AUDIOBACKUP_CLICKED);
+        });
+      }
     }
+
 }
 
 export default VideoPlayer;
