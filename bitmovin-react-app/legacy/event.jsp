@@ -12,17 +12,19 @@
 <%@ page import="org.json.*"%>
 <%@ page import="tcorej.security.*"%>
 <%@ page import="tcorej.speechtotext.*"%>
+<%@ page import="tcorej.multicast.*" %>
+<%@ page import="tcorej.util.CentrifugoUtils" %>
 <%@ page import="org.apache.commons.text.StringEscapeUtils"%>
 <%@ include file="/viewer/include/globalinclude.jsp"%>
 <%
 String sEventId =  StringTools.n2s(request.getParameter(Constants.RQEVENTID));
 String stp_special = StringTools.n2s(request.getParameter("tp_special"));
-if(stp_special.indexOf("notavailable_")!=-1){%>
-	<%if(DateTools.getDrift(stp_special.replace("notavailable_",""))<30){%>
+if (stp_special.indexOf("notavailable_")!=-1) {
+	if (DateTools.getDrift(stp_special.replace("notavailable_",""))<30) { %>
 		<jsp:include page="notavailable.jsp">
 		<jsp:param name="ei" value="<%=sEventId%>"/>
 	</jsp:include>
-	<%return;
+	<% return;
 	}
 }
 int iEventId = -1;
@@ -48,6 +50,8 @@ boolean hasSMILFilesForCurrentVersion = false;
 boolean displayChat = false;
 boolean isBridgeCustom = false;
 boolean isWebcam = false;
+boolean analyticsActive = false;
+boolean isChaptersExpanded = false;
 int nFlashBandwidthCheckerDelaySec = 10;
 String sAdaptiveBitrateStreamsJson = Constants.EMPTY;
 String sPrimaryStreamId = Constants.EMPTY;
@@ -91,6 +95,7 @@ HashMap<String, String> hmAllPlayerText = null;
 String sStandbyGif = Constants.EMPTY;
 String sLanguage = Constants.EMPTY;
 String tp_jump = Constants.EMPTY;
+boolean initJumpEnabled = false;
 String sCurrFixedTextLang = Constants.EMPTY;
 String fname= Constants.EMPTY;
 String lname= Constants.EMPTY;
@@ -223,6 +228,7 @@ String sPassThruUrl = Constants.EMPTY;
 String sTpKey = Constants.EMPTY;
 String chatMessageString = Constants.EMPTY;
 boolean displayQA = false;
+boolean displayChaptersTab = false;
 
 String userLocalTZDate = Constants.EMPTY;
 
@@ -251,6 +257,16 @@ String sBannerMain_alt = Constants.EMPTY;
 String sBannerRight_alt= Constants.EMPTY;
 String kollective_contentToken = Constants.EMPTY;
 boolean bPlayerOnly = false; 
+int lglvl = -1;
+boolean isProd = true;
+
+final String reactionPublishUrl = CentrifugoUtils.getReactonURL(sEventId);
+final String centrifugoUrl = CentrifugoUtils.getCentrifugoURL();
+String centrifugoChannelName = Constants.EMPTY;
+String centrifugoClientToken = Constants.EMPTY;
+String centrifugoChannelToken = Constants.EMPTY;
+String reactionText = Constants.EMPTY;
+
 try{
 	
 	sEventId =  StringTools.n2s(request.getParameter(Constants.RQEVENTID));
@@ -272,6 +288,8 @@ try{
     String sServerName = request.getServerName().toLowerCase();
     
     bIE11 = userAgent.contains("windows nt 6.1") && userAgent.contains("rv:");
+    
+    lglvl = StringTools.n2i(request.getParameter("lglvl"), -1);
     
    	if(Constants.EMPTY.equals(sEventId)){
 	    %><jsp:forward page="/session-error.html" /><%
@@ -327,8 +345,13 @@ try{
     sEventType = myEvent.getProperty(EventProps.contenttype).equals("") ? "live" : myEvent.getProperty(EventProps.contenttype).toLowerCase();
     sMode = myEvent.getStatus(EventStatus.mode).getValue();
     isOD = (sEventType.equals("od") || (sMode.equals("ondemand")));
-    
-    tp_jump = StringTools.n2s(request.getParameter("tp_jump"));	
+
+	// Chapters tab is only displayed for OnDemand events and SimLive events that have ended. 
+	// The mode is also "ondemand" for simLive events, so need to exclude scheduled simLive events.
+	logger.log(Logger.INFO, "event.jsp", "event=" + sEventId + " isSimLiveEvent=" + myEvent.isSimLive() +
+			" hasSimLiveSchedule=" + myEvent.hasSimLiveSchedule());
+	displayChaptersTab = myEvent.isModeOnDemand() && !myEvent.hasSimLiveSchedule() && myEvent.isChaptersEnabled();
+
     sLanguage = StringTools.n2s(request.getParameter("language"));	
     if(Constants.EMPTY.equals(sLanguage)){
 		sLanguage = myEvent.getDefaultLanguage();
@@ -371,16 +394,17 @@ try{
     	sPlayButtonDivPad = "0"; //Ensures play button sits on properly on top of headshot window
     }
     
-    if(isOD) {
+	if (isOD) {
     	//check for simlive
-    	if(myEvent.isSimLive()) {
+    	if (myEvent.isSimLive()) {
     		lCurrentDate = System.currentTimeMillis();    		 
     		isPreSimlive = myEvent.isPreSimLive();
     		isSimLiveRunning = myEvent.isSimLiveRunning();
     		isSimlive = isPreSimlive || isSimLiveRunning;
-    		if(isPreSimlive) {
+   
+    		if (isPreSimlive) {
     			sDate = myEvent.getSimliveStartDateDisplay();
-    			if(!sDate.equals("")) {
+    			if (!sDate.equals("")) {
     				sDate = hmAllPlayerText.get("wmsg_scheduled_for") + ": " + sDate;
     			}
     		}
@@ -467,6 +491,11 @@ try{
 	        }
 
 	        disable_od_seek = myEvent.getProperty(EventProps.disable_od_seek).equals("1") || isSimlive;
+	        if(isOD){
+	        	if(disable_od_seek){
+	        		displayChaptersTab=false;
+	        	}
+	        }
 	        caption = myEvent.getProperty(EventProps.caption);
 	        if(Constants.EMPTY.equals(caption)){
 	        	caption= Constants.EMPTY_JSON;
@@ -555,29 +584,29 @@ try{
 	    	tabTypeValue = StringTools.n2i(tab.getTabType(), -1);
 	    	
 			if (tabTypeValue != Constants.TabType.CHAT.value() || displayChat) {
-		if (!"en-us".equalsIgnoreCase(sLanguage)) {
-			if (tabTypeValue == Constants.TabType.QA.value()) {
-				if ("ask a question".equalsIgnoreCase(tab.getTabTitle())) {
-					tab.setTabTitle(myEvent.getPlayerTextForField("tab_ask_question"));
+				if (!"en-us".equalsIgnoreCase(sLanguage)) {
+					if (tabTypeValue == Constants.TabType.QA.value()) {
+						if ("ask a question".equalsIgnoreCase(tab.getTabTitle())) {
+							tab.setTabTitle(myEvent.getPlayerTextForField("tab_ask_question"));
+						}
+					} else if (tabTypeValue == Constants.TabType.RESOURCES.value()) {
+						if ("event resources".equalsIgnoreCase(tab.getTabTitle())) {
+							tab.setTabTitle(myEvent.getPlayerTextForField("tab_evt_resources"));
+						}
+					} else if (tabTypeValue == Constants.TabType.CHAT.value()) {
+						if ("chat".equalsIgnoreCase(tab.getTabTitle())) {
+							tab.setTabTitle(myEvent.getPlayerTextForField("aud_chat_title"));
+						}
+					}
 				}
-			} else if (tabTypeValue == Constants.TabType.RESOURCES.value()) {
-				if ("event resources".equalsIgnoreCase(tab.getTabTitle())) {
-					tab.setTabTitle(myEvent.getPlayerTextForField("tab_evt_resources"));
-				}
-			} else if (tabTypeValue == Constants.TabType.CHAT.value()) {
-				if ("chat".equalsIgnoreCase(tab.getTabTitle())) {
-					tab.setTabTitle(myEvent.getPlayerTextForField("aud_chat_title"));
-				}
-			}
-		}
 		
-		if (sTabGroupAccordion.equals(tab.getTabgroup())) {
-			alAcordTabs.add(tab);
-		} else {
-			alTabs.add(tab);
-		}
+				if (sTabGroupAccordion.equals(tab.getTabgroup())) {
+					alAcordTabs.add(tab);
+				} else {
+					alTabs.add(tab);
+				}
 			}
-		 }
+		}
 	 
 	   sBackground_image =  myEvent.getBranding().getEvent_Background_image();
 	    sBackground_color =  myEvent.getBranding().getEvent_background_color_hex();
@@ -809,7 +838,21 @@ try{
 			String sReplace = "</style><link href=\"" + sTemplatePath + "style/modernlayout.css?" + codetag + "\" rel=\"stylesheet\" type=\"text/css\" /><style>"; 
 			sPlayer_customcss = sPlayer_customcss.replaceAll("__MODERNLAYOUT__",sReplace);
 		}
+		analyticsActive = StringTools.n2b(globalConfig.get(Constants.ANALYTICS_ACTIVE_CONFIG));
 	
+		tp_jump = StringTools.n2s(request.getParameter("tp_jump"));
+		if (isOD && !isSimlive && ishtml5player && !tp_jump.isEmpty()) {
+			// enable jumping to a specific point when OD stream is loaded 
+			initJumpEnabled = true;
+		}
+		
+		final Constants.PlatformEnvironment env = Constants.PlatformEnvironment.get(StringTools.n2s(globalConfig.get(Constants.PLATFORM_ENVIRONMENT_CONFIG)));
+		isProd = env == Constants.PlatformEnvironment.PRODUCTION || env == Constants.PlatformEnvironment.PRODUCTION_2;
+		
+		centrifugoChannelName = CentrifugoUtils.getChannelName(sEventId);
+		centrifugoClientToken = CentrifugoUtils.generateClientToken(sEventId, ui);
+		centrifugoChannelToken = CentrifugoUtils.generateChannelToken(sEventId, ui, centrifugoChannelName);
+		reactionText = "How do you feel about the presentation right now?";
 	} catch (Exception e) {
 		logger.log(Logger.CRIT,"jsp","Error for event " + sEventId,"event.jsp");
 		logger.log(Logger.DEBUG,"jsp","stacktrace:\n" + ErrorHandler.getStackTrace(e),"event.jsp");
@@ -829,6 +872,7 @@ try{
 	<jsp:param name="sTpKey" value="<%=sTpKey%>"/>
 </jsp:include>
 <title><%=sTitle%> - <%=sEventId%></title>
+<link rel="stylesheet" href="/include/bitmovin/bitmovinplayer-ui.css">
 <link href="<%=sTemplatePath%>style/jquery-ui.css?<%=codetag%>" rel="stylesheet" type="text/css" />
 <link href="<%=sTemplatePath%>style/player.css?<%=codetag%>" rel="stylesheet" type="text/css" />
 <link href="/include/<%=sVideojs%>/video-js.min.css?<%=codetag%>" rel="stylesheet" type="text/css" />
@@ -850,6 +894,7 @@ try{
 	<jsp:param name="sReg_templatecss" value=""/>
 	<jsp:param name="sPlayer_templatecss" value="<%=sPlayer_templatecss%>"/>
 </jsp:include>
+<script type="text/javascript" src="/js/analytics.js"></script>
 <style>
 /*******************/
 /* responsive code */
@@ -885,8 +930,8 @@ try{
 
 @media only screen and (max-height: 500px) {
    #secondarymedia{
-      width: 100% !important;
-      height: 99vh !important;
+      width: 100% ;
+      height: 99vh ;
    }
    
    #loadingbox{
@@ -894,8 +939,15 @@ try{
    }
    
    .removeVideo125 .ui-tabs-nav{
-	    display: none !important;
+	    /*display: none !important;*/
 	}
+}
+
+@media only screen and (max-height: 412px) and (orientation: landscape){
+   #secondarymedia{
+      height: auto;
+      width: 100vh !important;
+   }
 }
 /**** same as removeSlide125 #surveyresult_frame from playercss ****/
 .playerOnly #surveyresult_frame, .playerOnly #survey_frame{
@@ -907,6 +959,24 @@ try{
     top: 15vh;
     z-index: 10;
 }
+.bmpui-ui-watermark {
+	display: none;
+}
+.bmpui-ui-piptogglebutton {
+	display: none !important;
+}
+
+<%if(isAudio){%>
+    @media only screen and (max-width: 639px){
+		#headshot{
+			width: 100vw;
+		}
+		#viewer #player{
+	  		min-height: calc((100vw - 320px) + 215px) !important;
+		}
+	}
+<%}%>
+
 </style>
 <%if(bInRoomView){%>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -946,11 +1016,9 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	<jsp:param name="sBannerMain_alt" value="<%=sBannerMain_alt%>"/>
 	<jsp:param name="sBannerRight_alt" value="<%=sBannerRight_alt%>"/>
 </jsp:include>
-  
-  <div id="react_test"></div>div>
-<div id="viewer" class="ui-widget <%=bPlayerOnly?" playerOnly":""%>">
-  <!-- <div id="viewer_video"  style="width:<%=sVideoWidth%>px;" class="left"> -->
-  <div id="hlsVideo" style="width:<%=sVideoWidth%>px;" class="left">
+   
+<div id="viewer" class="ui-widget <%=bPlayerOnly?" playerOnly":""%> <%=isAudio?" audioEvent":""%>">
+  <div id="viewer_video"  style="width:<%=sVideoWidth%>px;" class="left">
   <div id="debug_ts" style="display:none">PDT: <span id="showcap"></span> viewer: <span id="showvt"></span></div>
     <div id="player" style="height:<%=sVideoHeight%>px" class="ui-corner-tl ui-corner-tr">
        	<div id="player_headshot">
@@ -963,7 +1031,15 @@ input.tp-button, button.tp-button {padding:6px 16px}
       	<div id="playermsg" class="player_hide"><div id="playermsg_wrapper"><span id="playermsg_txt"></span><br>
         	<button type="button" class="ui-state-default ui-corner-all tp-button" id="playermsg_ok"><%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("close"))%></button></div>
       	</div>
-    	<div id="flvplayer"></div>
+    	<div id="flvplayer"><video id="playerVdo" disablePictureInPicture=true></video></div>
+    	<!-- Accessibility live status  -->
+		<div id="player-status-live" aria-live="polite" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">
+  		<!-- Dynamic status will be injected here -->
+		</div>
+		<!-- Accessibility Live status of volume, outside interactive controls -->
+		<div id="player-volume-live" aria-live="polite" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+
+		<div id="ReactWedge"></div>
     	<div id="playbuttonDiv" style="height:<%=StringTools.n2I(sVideoHeight)-StringTools.n2I(sPlayButtonDivPad)%>px;width:<%=sVideoWidth%>px;position:absolute;display:flex;justify-content:center;align-items:center;left:0px;top:0px;z-index:10;">
        	    <span>
        	   	<img src="<%=sTemplatePath%>style/images/playbutton-large.png" tabindex="0" onkeypress="$('#playbuttonDiv').click()" name="playbutton" id="playbutton" style="display:block;margin:auto;width:25%;" title="<%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("alt_play"))%>" alt="<%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("alt_play"))%>"/></span>
@@ -1031,10 +1107,11 @@ input.tp-button, button.tp-button {padding:6px 16px}
     <% if(generateQATab){ %>
 	   <h3  class="accordianiframeheader isopen" id="reviewqa"> <a href="#"  class="qa_title" id="reviewqa_title" tabindex='0'><%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("tab_ask_question"))%></a> </h3>
 	   <div class="accordian_div">
-       		  <iframe class="accordian_iframe" name="reviewqa_frame" id="reviewqa_frame" frameborder="0" src="javascript:'';" title="Ask a QQuestion "></iframe>
+       		  <iframe class="accordian_iframe" name="reviewqa_frame" id="reviewqa_frame" frameborder="0" src="javascript:'';" title="Ask a Question "></iframe>
         </div>
       <%}%>
      <%if(alAcordTabs.size()>0){ 
+    	 // sidebar tabs
        	 for (TabListBean tab : alAcordTabs){ %>
        	 <%if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.QA.value()) && displayQA) {%>
        		  <h3  class="accordianiframeheader <%=tab.isOpen() ? "isopen" : ""%>" id="reviewqa"> <a href="#" class="qa_title" id="reviewqa_title" tabindex='0' aria-label='ask a question section'><%=tab.getTabTitle()%></a> </h3>
@@ -1042,12 +1119,16 @@ input.tp-button, button.tp-button {padding:6px 16px}
        		 	 <iframe class="accordian_iframe" name="reviewqa_frame" id="reviewqa_frame" frameborder="0" src="javascript:'';"></iframe>
        		  </div>
 		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.RESOURCES.value())) {%> 
-		      <h3 class="<%=tab.isOpen() ? "isopen" : Constants.EMPTY%> documentsheader" id="documentsheader"><a class="resources_title" href="#"><%=tab.getTabTitle()%></a></h3><div id="documentuploads"><ul></ul></div>
+		      <h3 class="<%=tab.isOpen() ? "isopen" : Constants.EMPTY%> documentsheader" id="documentsheader"><a class="resources_title" href="#"><%=tab.getTabTitle()%></a></h3>
+		      <div id="documentuploads"><ul></ul></div>
 		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAT.value())) {%> 
 		      <h3 class="<%=tab.isOpen() ? "isopen" : Constants.EMPTY%>" id="chatheader"><a  class="chat_title" href="#"><%=tab.getTabTitle()%></a></h3>
-				<div id="chat">
-				   <iframe frameborder="0" scrolling="no" style="width:100%;height:100%" src="chat_tab.jsp?<%=Constants.RQEVENTID%>=<%=iEventId%>&<%=Constants.RQUSERID%>=<%=ui%>&<%=Constants.RQSESSIONID%>=<%=si%>&<%=Constants.RQEMAILADDRESS%>=<%=URLEncoder.encode(ea, "UTF-8")%>&fname=<%=URLEncoder.encode(fname, "UTF-8")%>&lname=<%=URLEncoder.encode(lname, "UTF-8")%>&sh0=<%=sh0%>&sh1=<%=sh1%><%=chatMessageString%>&location=<%=Constants.ChatLocation.VIEWER_LEFT_TAB.id()%>"></iframe>
-				</div>
+			  <div id="chat">
+		 		<iframe frameborder="0" scrolling="no" style="width:100%;height:100%" src="chat_tab.jsp?<%=Constants.RQEVENTID%>=<%=iEventId%>&<%=Constants.RQUSERID%>=<%=ui%>&<%=Constants.RQSESSIONID%>=<%=si%>&<%=Constants.RQEMAILADDRESS%>=<%=URLEncoder.encode(ea, "UTF-8")%>&fname=<%=URLEncoder.encode(fname, "UTF-8")%>&lname=<%=URLEncoder.encode(lname, "UTF-8")%>&sh0=<%=sh0%>&sh1=<%=sh1%><%=chatMessageString%>&location=<%=Constants.ChatLocation.VIEWER_LEFT_TAB.id()%>"></iframe>
+			  </div>
+		  <%} else if (Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAPTERS.value()) && displayChaptersTab) {%> 
+				<h3 class="<%=tab.isOpen() ? "isopen" : Constants.EMPTY%>" id="chaptersheader"><a class="chapters_title" href="#"><%=tab.getTabTitle()%></a></h3>
+				<div id="jumppointdiv"></div>
 		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.HTML.value())){%>
 	       	 <h3 class="accordianiframeheader <%=tab.isOpen() ? "isopen" : Constants.EMPTY%>" id="<%=tab.getTabId()%>"> <a  class="html_title" href="#" ><%=tab.getTabTitle()%></a> </h3>
 	       	 	<div class="accordian_div" <%if(isIOS){%> style="height:150px;-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
@@ -1120,7 +1201,8 @@ input.tp-button, button.tp-button {padding:6px 16px}
    	 	<%if(isSlides){ %>
        <li class="ui-state-default ui-corner-top" tabid="slide" id="slide_title"><a href="#"><%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("tab_slides"))%></a></li>
        <%} %>
-       <%if(alTabs.size()>0){ 
+       <%if(alTabs.size()>0){
+    	   // primary tabs
        	 for (TabListBean tab : alTabs){%>
 	       	  <%if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.QA.value()) && displayQA) {%>
 	       	   <li class="ui-state-default ui-corner-top" tabid="<%=tab.getTabId()%>" id="<%=tab.getTabId()%>_title"><a class="qa_title" href="#"><%=tab.getTabTitle()%></a></li>
@@ -1128,13 +1210,15 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	  		   <li class="ui-state-default ui-corner-top" tabid="<%=tab.getTabId()%>" id="<%=tab.getTabId()%>_title"><a class="resources_title" href="#"><%=tab.getTabTitle()%></a></li>
 	  		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAT.value())) {%> 
 		 	  <li class="ui-state-default ui-corner-top" tabid="<%=tab.getTabId()%>" id="<%=tab.getTabId()%>_title"><a class="chat_title" href="#"><%=tab.getTabTitle()%></a></li>  	
+	  		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAPTERS.value()) && displayChaptersTab) {%> 
+		 	  <li class="ui-state-default ui-corner-top" tabid="<%=tab.getTabId()%>" id="<%=tab.getTabId()%>_title"><a class="chapters_title" href="#"><%=tab.getTabTitle()%></a></li>
 	  		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.HTML.value())){%>
 	  	 	   <li class="ui-state-default ui-corner-top" tabid="<%=tab.getTabId()%>" id="<%=tab.getTabId()%>_title"><a class="html_title" href="#"><%=tab.getTabTitle()%></a></li>
 	          <%}%>
           <%}
        }%>
       </ul>
-     <div id="tabs_content">
+     <div id="tabs_content" role="region" aria-label="<%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("tab_slides"))%>">
        	<div class="slidesOnlyPlayer">
 			<div class="slidesOnlyPlayer__play">
 				<i class="fa fa-play"></i>
@@ -1178,21 +1262,30 @@ input.tp-button, button.tp-button {padding:6px 16px}
        	<div class="clear"></div>
       	<span id="slideinfo"></span>
    	  </div>
-      <%if(alTabs.size()>0){ 
+      <%if(alTabs.size()>0){
+    	  // primary tabs content
        	 for (TabListBean tab : alTabs){%>
        	  <%if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.QA.value()) && displayQA) {%>
        	  	<div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom isqa" <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
          	   <iframe class="accordian_iframe isqaright" name="reviewqa_frame" id="reviewqa_frame" frameborder="0" src="javascript:'';"></iframe>
   		  	</div>
   		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.RESOURCES.value())) {%> 
-  		      <div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom documentuploads" <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>><div id="documentuploads"><ul></ul></div></div>
+  		      <div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom documentuploads" <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
+  		      	<div id="documentuploads"><ul></ul></div>
+  		      </div>
   		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAT.value())) {%> 
   		     	<div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom" <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
   				   <iframe frameborder="0" scrolling="no" style="width:100%;height:100%" src="chat_tab.jsp?<%=Constants.RQEVENTID%>=<%=iEventId%>&<%=Constants.RQUSERID%>=<%=ui%>&<%=Constants.RQSESSIONID%>=<%=si%>&<%=Constants.RQEMAILADDRESS%>=<%=URLEncoder.encode(ea, "UTF-8")%>&fname=<%=URLEncoder.encode(fname, "UTF-8")%>&lname=<%=URLEncoder.encode(lname, "UTF-8")%>&sh0=<%=sh0%>&sh1=<%=sh1%><%=chatMessageString%>&location=<%=Constants.ChatLocation.VIEWER_TOP_TAB.id()%>"></iframe>
   				</div>
   		  <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.HTML.value())){%>
-  	       		<div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom"  <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>><iframe id="<%=tab.getTabId()%>_content" name="<%=tab.getTabId()%>_content" src="javascript:'';" allowtransparency="true" frameborder="0" scrolling="auto" allowfullscreen webkitallowfullscreen mozallowfullscreen width="100%" height="100%"></iframe></div>
-          <%}%>       		
+  	       		<div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom"  <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
+  	       			<iframe id="<%=tab.getTabId()%>_content" name="<%=tab.getTabId()%>_content" src="javascript:'';" allowtransparency="true" frameborder="0" scrolling="auto" allowfullscreen webkitallowfullscreen mozallowfullscreen width="100%" height="100%"></iframe>
+  	       		</div>
+          <%}else if(Integer.valueOf(tab.getTabType()).equals(Constants.TabType.CHAPTERS.value()) && displayChaptersTab){%>
+  	       		<div id="<%=tab.getTabId()%>" class="tab_content tab_hide ui-corner-bottom"  <%if(isIOS){%> style="-webkit-overflow-scrolling:touch; overflow:auto;"<%}%>>
+ 					<div id="jumppointdiv"></div>
+  	       		</div>
+          <%}%>
        	 <%}
       }%>
       </div>   
@@ -1210,16 +1303,7 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	  </div>
   	</div>
   </div>
-  <%if(isOD){%>
-  <div id="jumppointframe" class="ui-corner-all ui-widget ui-widget-content" tabIndex="0" aria-label="Jump point modal is now open" role="dialog">
-   	<span class="left jumpToTitle"><%=StringEscapeUtils.escapeHtml4(hmAllPlayerText.get("opt_jump_to"))%> </span>
-   	<span class="ui-state-default ui-corner-all right">
-   		<button class="ui-icon ui-icon-closethick" id="jump_close" aria-label="close jump points chapter modal"></button>
-   	</span>
-    <div class="clear"></div>
-   	<div id="jumppointdiv"></div>
-  </div>
-  <%}%>
+
   <div id="sponsorlogo" role='img' aria-label='sponsor logo'></div>
   <div class="clear"></div>
   <%if(!Constants.EMPTY.equals(sFooter)){ %>
@@ -1265,11 +1349,13 @@ input.tp-button, button.tp-button {padding:6px 16px}
                 <p class="ui-corner-all" id="odpausealert_close">Extend Session</p>
 		   </div>
 	  	</div>
+	  	<!-- No longer needed loadingbox as per ticket DKB-1782 description -->
+	  	<%--
 		<div id="loadingbox" class="ui-widget" aria-hidden="false">
       		<div id="alertBlock" class="ui-state-error ui-corner-all"></div>
         	<div id="alertInfo" class="ui-state-highlight ui-corner-all">Loading Player</div>
          	<img src="<%=sTemplatePath%>style/images/loading_text.gif" name="loadingtxt" id="loadingtxt" valign="middle" alt='Loading Page' tabindex='0' aria-label='loading page graphic'/>
-    	</div>
+    	</div> --%>
     	<iframe name="secondarymedia" id="secondarymedia" title="Overlay Video with additional information" allow="autoplay; fullscreen" frameborder="0" allowFullScreen="true" webkitAllowFullScreen="true" mozallowfullscreen="true" scrolling="no" src="javascript:'';"></iframe>
       </td>
     </tr>
@@ -1289,9 +1375,12 @@ input.tp-button, button.tp-button {padding:6px 16px}
    <input type="hidden" name="sh1" id="sh1" value="<%=sh1%>" />
    <input type="hidden" name="language" id="language" value="<%=sLanguage%>" />
  </form>
+
 <jsp:include page="footerTop.jsp">
 	<jsp:param name="piwik_enabled" value="<%=StringTools.n2b(myEvent.getProperty(EventProps.piwik_enabled))%>"/>
 </jsp:include>
+<script type="text/javascript" src="/include/bitmovin/index.js?<%=codetag%>"></script>
+
 <script type="text/javascript" src="/viewer/include/json2.js?<%=codetag %>"></script>
 <script type="text/javascript" src="/viewer/include/viewerUploads.js?<%=codetag %>"></script>
 <script type="text/javascript" src="/viewer/include/viewerUtils.js?<%=codetag %>"></script>
@@ -1303,30 +1392,21 @@ input.tp-button, button.tp-button {padding:6px 16px}
 <script type="text/javascript" src="/viewer/include/viewerControls.js?<%=codetag %>"></script>
 <script type="text/javascript" src="/viewer/include/viewerPlayerCallbacks.js?<%=codetag %>"></script>
 <script type="text/javascript" src="/viewer/include/viewerLoader.js?<%=codetag %>"></script>
-<!-- <script type="text/javascript" src="/include/<%=sVideojs%>/video.min.js?<%=codetag %>"></script>
-<script type="application/json" src="/include/<%=sVideojs%>/video.min.js.map?<%=codetag %>"></script> -->
-<%if(!bVideoJSOnly){ %>
-	<%if(isHiveMulticast){%>
-	<script type="text/javascript" src="/include/hive/hivejs.interceptor.v8.js?<%=codetag%>"></script>
-	<%}%>
-	<script type="text/javascript" src="/include/bitmovin/md5.min.js"></script>
-    <script type="text/javascript" src="/include/bitmovin/bitmovinplayer.js"></script>
-    <script type="text/javascript" src="/include/bitmovin/bitmovinanalytics.min.js"></script>
-    <script type="text/javascript" src="/include/bitmovin/bitmovin-player-integration-cmcd.js"></script>
-	<%if(isHiveMulticast){%>
-		<script src="/include/hive/talkpoint2.java.hivejs.hive.min.js?<%=codetag%>"></script>
-		<script type="text/javascript" src="/include/hive/renderStats.js?<%=codetag%>"></script> 
-	<%}%>
-	<%if(isKollectiveMulticast){%>
-	<script src="https://cdn.kollective.app/sdk/ksdk-latest.min.js" defer></script>
-	<%}%>
-	<%if(isHiveMulticast || isKollectiveMulticast){%>
-	<script type="text/javascript" src="/js/multicastTools.js?<%=codetag %>"></script>
-	<%}%>
-<%}else{%>
-	<script type="text/javascript" src="/js/jquery/jquery.ui.videojs.js?<%=codetag %>"></script>
-	<script type="text/javascript" src="/include/videojs_plugins/videojs-contrib-quality-levels.min.js?<%=codetag %>"></script>
-<%}%>
+<% if(!bVideoJSOnly){ %>
+	<% if (isKollectiveMulticast || isHiveMulticast) { %>
+		<script type="text/javascript" src="/js/multicastTools.js?<%=codetag %>"></script>
+		
+		<% if(isKollectiveMulticast){%>
+			<script src="https://cdn.kollective.app/sdk/ksdk-latest.min.js" defer></script>
+			<script type="text/javascript" src="/include/kollective/kollective.js?<%=codetag %>"></script>
+		<% } else if (isHiveMulticast) {%>
+			<script src="https://media-players.hivestreaming.com/plugins/html5/12.0.2/html5.java.hivejs.hive.min.js"></script>
+			<script src="https://media-players.hivestreaming.com/common_libs/html5/bitmovin/hive-module.js"></script>
+			<script type="text/javascript" src="/include/hive/hive.js?<%=codetag %>"></script>
+			<script> var hiveJWT = '<%=StringEscapeUtils.escapeEcmaScript(myEvent.getStreamJWT())%>'; </script>
+		<%}%>
+	<% } %>
+<% } %>
 <%if(isIOS ||isHLS){%>
 <script type="text/javascript" src="/viewer/include/jquery.ui.touch-punch.js?<%=codetag%>"></script>
 <%}%>
@@ -1336,15 +1416,15 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	<script src="/js/transcript.js?<%=codetag %>"></script>
 <%}%>
 
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/bitmovin-player@8/bitmovinplayer.js" crossorigin></script>
-<script type="text/javascript" src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
-<script type="text/javascript" src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
-<script type="text/javascript" src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js" crossorigin></script>
-<script type="text/javascript" src="/test/react/index.js"></script>
+	<script type="text/javascript">
+	if (<%=analyticsActive%> === true) {
+		//analyticsExclude(["param_eventCostCenter"]);
+	    analyticsInit('<%=ui%>', {
+			eventID: '<%=sEventId%>',
+			clientID: '<%=sClientid%>'
+	    });
+	}
 
-<script type="text/javascript">
-	console.log("si: <%=si%> ui: <%=ui%> ea: <%=ea%>");
-	console.log("<%=sPrimaryStreamId%>");
 	var entityMap = {"&": "&amp;","<": "&lt;",">": "&gt;",'"': '&quot;',"'": '&#39;',"/": '&#x2F;'};
 	function escapeHtml(string) {
 		return String(string).replace(/[&<>"'\/]/g, function (s) {
@@ -1365,6 +1445,11 @@ input.tp-button, button.tp-button {padding:6px 16px}
 		 	if((tp_special & BITMASK_OFF.exit)==BITMASK_OFF.exit){
 		 		if((tp_special & BITMASK_OFF.help)==BITMASK_OFF.help){
 		 			$("#eventexit").hide();
+		 			
+		 			if(tp_special === 15){
+		 				$(".ui-tabs-nav").hide();
+		 				document.getElementById('playerBody').classList.add('tp_special_15');
+		 			}
 		 		}else{
 		 			$("#close").parent().parent().hide();
 		 		}
@@ -1387,7 +1472,7 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	
 	var tpPlayer=<%=tpPlayer%>;
 	var mutePlayer = false;
-	var autoPlayDisable = false;https://alpha-od.cdn.webcasts.com/securehds/_definst_/mp4:loop/convey_standby_1080p.mp4/playlist.m3u8"
+	var autoPlayDisable = false;
 	if(tpPlayer>0){
 		var BITMASK_OFF_PLAYER = {mutePlayer:1,autoPlayDisable:2};
 		mutePlayer = ((tpPlayer & BITMASK_OFF_PLAYER.mutePlayer)==BITMASK_OFF_PLAYER.mutePlayer);
@@ -1419,7 +1504,20 @@ input.tp-button, button.tp-button {padding:6px 16px}
 	    }
 	}catch(e){}
 	
+	var lglvl = <%=lglvl%>;
+	var isPD = <%=isProd%>;
+	
+	window.engagementInfo = {
+		centurl: "<%=StringEscapeUtils.escapeJson(centrifugoUrl)%>",
+		channel: "<%=StringEscapeUtils.escapeJson(centrifugoChannelName)%>",
+		clttk: "<%=StringEscapeUtils.escapeJson(centrifugoClientToken)%>",
+		chntk: "<%=StringEscapeUtils.escapeJson(centrifugoChannelToken)%>",
+		puburl: "<%=StringEscapeUtils.escapeJson(reactionPublishUrl)%>",
+		reactiontxt: "<%=StringEscapeUtils.escapeJson(reactionText)%>",
+	}
+	
 	$(document).ready(function(){
+		
 		$.browser.msie = ((navigator.appName == 'Microsoft Internet Explorer') || ((navigator.appName == 'Netscape') && (new RegExp("Trident/.*rv:([0-9]{1,}[\.0-9]{0,})").exec(navigator.userAgent) != null)));
  		$.oFlash = {"bStat":0,"version":{},"versionTxt":""};
 		$.oViewerMsg = {"flashRequired":"<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("err_flash")).replace("_sFlashVersion_", sFlashVersionText)%>" + $.oFlash.versionTxt,"connFailed" : "<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("err_conn_failed"))%>","enterQuestion" : "<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("qna_please_enter"))%>","questionSubmitted" : "<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("qna_submit_success"))%>","mediaDisconnect" : "<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("err_disco"))%>","custom":"","noFlashUnicast":"<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("err_no_unicast"))%>", "bridgeSwitch" : "<%=StringEscapeUtils.escapeEcmaScript(hmAllPlayerText.get("audience_number_change"))%>"};
@@ -1427,7 +1525,7 @@ input.tp-button, button.tp-button {padding:6px 16px}
 		$.oViewerData = {"mutePlayer":mutePlayer,"autoPlayDisable":autoPlayDisable,"bIE11":<%=bIE11%>,"isTypeLiveOrSimlive" : <%=isModeLiveOrPrelive||isSimlive%>,"liveTranscriptEnabled":<%=myEvent.isLiveTranscriptionEnabled()%>,"showLiveCaptionsInViewerByDefault":<%=myEvent.isShowLiveCaptionsInViewerByDefaultEnabled()%>,"downloadTranscriptButtonEnabledInViewer":<%=myEvent.isSpeechToTextDownloadInViewerEnabled()%>,"transcript_viewer_display":<%=myEvent.isShowSpeechToTextFeatureInViewer(SpeechToTextConstants.Feature.TRANSCRIPT)%>,"keyPrases_viewer_display":<%=myEvent.isShowSpeechToTextFeatureInViewer(SpeechToTextConstants.Feature.KEY_PHRASES)%>,"captionsEnabled":<%=myEvent.isSpeechToTextFeatureEnabled(SpeechToTextConstants.Feature.KEY_PHRASES)%>,"captionsVisible":<%=myEvent.isOpenCaptionsInViewerEnabled()%>,"keyPhrasesVisible":<%=myEvent.isSpeechToTextFeatureEnabled(SpeechToTextConstants.Feature.KEY_PHRASES)%>,"transcriptEnabled":<%=myEvent.isSpeechToTextFeatureEnabled(SpeechToTextConstants.Feature.TRANSCRIPT)%>,"full_text":"<%=SpeechToTextConstants.FULL_TEXT_KEY%>","items":"<%=SpeechToTextConstants.ITEMS_KEY%>","transcriptViewerFileUrl":"<%=sTranscriptUrl%>","isStreamLive":false,"livestarttime":0,"sEventGUID" : "<%=sEventGUID%>","sClientid":"<%=sClientid%>","sEventId":"<%=sEventId%>","isAudio":<%=isAudio%>,"isPhoneDefault":<%=isPhoneDefault%>,"ea" :"<%=ea%>","ui" : "<%=ui%>","si" : "<%=si%>","sRatio":4/3,"isOD":<%=isOD%>,"isSimlive":<%=isSimlive%>,"simlivestarttime":<%=myEvent.getSimliveStartTime()%>,"isPreSimlive":<%=isPreSimlive%>,"sMode":"<%=sMode%>","isSlides":<%=isSlides%>,"sContentUrl":"<%=sContentUrl%>","sTemplatePath":"<%=sTemplatePath%>","QAModule" : "<%=QAModule%>","surveyModule" : "<%=surveyModule%>","trackerUrl":"<%=trackerUrl%>","trackerRefresh" : "<%=sTrackerRefresh%>","statusRefresh":"<%=sStatusRefresh%>","sStatusRefreshFactor":"<%=sStatusRefreshFactor%>","user_cnt":"<%=sUser_cnt%>","isIOS":<%=isIOS%>,"isHLS":<%=isHLS%>,"isHDS":<%=isHDS%>,"bUseQTiframe":<%=bUseQTiframe%>,"qa_email_address":"<%=qa_email_address%>","sTitle":"<%=sTitle%>","sDate":sDate,"sSlideType":"<%=sSlideType%>","isPreviewMode":<%=isPreviewMode%>,"playerType":"<%=sPlayerType%>","prevPlayerType":"","isHTML5Player":<%=ishtml5player%>,"regionid":"<%=myEvent.getProperty(EventProps.region_id)%>","ua":navigator.userAgent.toLowerCase(),"codetag":"<%=codetag%>","sPlayerSize":"<%=sPlayerSize%>","isWideScreen":<%=isWideScreen%>,"mp3download":<%=mp3download%>,"mp3_download_url":"<%=mp3_download_url%>","bUserControlSlides":<%=bUserControlSlides%>,"playerwidth":"<%=sVideoWidth%>","playerheight":"<%=sVideoHeight%>","currentstreamid":"<%=sStreamId%>","serverstreamid" : "<%=sStreamId%>","disable_od_seek":<%=disable_od_seek%>,"isWindowsVideo":<%=isWindowsVideo%>,"isWindowsAudio":<%=isWindowsAudio%>,"caption":<%=caption%>,"pageloadtime":<%=lCurrentDate%>,"sh1":"<%=sh1%>","sh0":"<%=sh0%>","simliveIndex":<%=lPlayIndex%>,"userAudioBackup":<%=isUserAudioBackup%>,"audiostreamid":"<%=sAudioStreamId%>","isLiveOverlayEnabled":<%=isLiveOverlayEnabled%>,"refreshRunning":false,"securedContentFolder":"<%=sSecuredContentFolder%>","isAdaptiveBitrate":<%=isAdaptiveBitrateEnabled%>,"primaryStreamId":"<%=sPrimaryStreamId%>",backupStreamId:"<%=sBackupStreamId%>","token":"","isStreamSecured":<%=isStreamSecured%>,"st":"<%=sSessionTypeOnLoad%>","odpausetimeout":<%=lOdpauseTimeout%>,"bInRoomView":<%=bInRoomView%>,"hasSMILFilesForCurrentVersion":<%=hasSMILFilesForCurrentVersion%>,"reportPlayerStat":false,"showQAAnswer" : <%=isQAAnswer%>,"showQA" : <%=displayQA%>, "qaTabTitle":"<%=QATabTitle%>","isViblastPDN": <%=isViblastPDN%>,"fname":"<%=fname%>", "lname" : "<%=lname%>","company":"<%=company%>","isTelAudioAdvanced":<%=isTelAudioAdvanced%>,"bridgePriority":<%=currentBridgePriority%>,"isBridgeCustom" : <%=isBridgeCustom%>, "isListenByPhone" : <%=bPhoneOption%>,"language":"<%=sLanguage%>","tp_key":"<%=sTpKey%>","clicktojoinurl":"<%=sClicktojoinurl%>","dialinurl":"<%=sDialinurl%>","sBridgeType":"<%=selectedBridgeType%>","isWebcam":<%=isWebcam%>,"sPostMsgApiTarget":"<%=sPostMsgApiTarget%>","sPrelive_player_layout":"<%=sPrelive_player_layout%>","tp_special": <%=tp_special%>,"sVTTUrl":"<%=sVTTUrl%>","vtt_caption":<%=vtt_caption%>,"bPlayerOnly":<%=bPlayerOnly%>};
 		$.oMulticastData = <%=sMulticastConfJson%>;
 		$.oFlashABRData = null;
-		$.oVideoInfo = {"isEnableFastyCookie":<%=isEnableFastyCookie%>,"status":"Connecting","currentVolume":50,"muted":false,"currentPosition":0,"totalDuration":0,"sCurrentSlide":"<%=sCurrentSlide%>","sCurrentHeadShot":"<%=sCurrentHeadShot%>","sCurrentSurvey":"<%=sCurrentSurvey%>","sCurrentSurveyResult":"<%=sCurrentSurveyResult%>","connType":"rtmp://","odSliderOn":false,"broadcasting":"<%=sBroadcasting%>","playerMsgType":"","odSlider":{"status":0,"pos":0},"sCurrentSecondaryMedia":"","initJump":"<%=tp_jump%>","sCurrentLayout":"<%=sCurrentLayout%>"};
+		$.oVideoInfo = {"initJumpEnabled":<%=initJumpEnabled%>,"isEnableFastyCookie":<%=isEnableFastyCookie%>,"status":"Connecting","currentVolume":50,"muted":false,"currentPosition":0,"totalDuration":0,"sCurrentSlide":"<%=sCurrentSlide%>","sCurrentHeadShot":"<%=sCurrentHeadShot%>","sCurrentSurvey":"<%=sCurrentSurvey%>","sCurrentSurveyResult":"<%=sCurrentSurveyResult%>","connType":"rtmp://","odSliderOn":false,"broadcasting":"<%=sBroadcasting%>","playerMsgType":"","odSlider":{"status":0,"pos":0},"sCurrentSecondaryMedia":"","initJump":"<%=tp_jump%>","sCurrentLayout":"<%=sCurrentLayout%>"};
 		$.oMulticast = {"isHiveMulticast":<%=isHiveMulticast%>,"isKontikiMulticast":<%=isKontikiMulticast%>,"isKollectiveMulticast":<%=isKollectiveMulticast%>,"isHiveFallback":<%=isHiveFallback%>,"isRampMulticast":<%=isRampMulticast%>,"isRampFallback":<%=myEvent.isRampMulticastFallback()%>,"isRampCache":<%=isRampCache%>,"useMulticastFallback":true,"multicastType":"<%=sMulticastType%>","isFlashMulticast":<%=isFlashMulticast%>,"isFlashmulticastfallback":<%=isFlashmulticastfallback%>,"isFlashMulticastRollBackToBackup":"<%=sFlashMulticastRollToBackupType%>","isWindowsmulticastfallback":<%=isWindowsmulticastfallback%>,"isRolledBackToBackupUnicast":false, "enableHiveJS" : <%=enableHiveJS%>, "kollectivePlugin" : undefined,"isKollectiveFallback":<%=myEvent.isKollectiveMulticastFallback()%>,"kollectiveToken" : "<%=StringEscapeUtils.escapeEcmaScript(kollective_contentToken)%>"};
 		$.oBranding = {"sBackground_color":"<%=sBackground_color%>","sBranding_highlight":"<%=sBranding_highlight%>"};
 		$.viewerSlide.oSlides = <%=sSlides%>;
@@ -1480,7 +1578,7 @@ input.tp-button, button.tp-button {padding:6px 16px}
 				ariaHidden('#overlay_body', 'false');
 			}else{
 			    setTimeout(function(){
-			        parent.$('.vjs-play-control').focus();
+			        //parent.$('.vjs-play-control').focus();
 			    }, 3000);	
 			}
 			
@@ -1557,13 +1655,25 @@ input.tp-button, button.tp-button {padding:6px 16px}
 		}
 		function doloadViewer(){
 			document.trackerform.submit();
-			loadViewer();
+			console.log(`doloadviewer: Ready state: ${document.readyState}`);
+			if (document.readyState === "complete") {
+				loadViewer();  // see viewerLoader.js
+			} else {
+				document.addEventListener("readystatechange", (e) => {
+					console.log(e.target.readyState);
+					if (e.target.readyState === "complete") {
+						loadViewer();
+					}
+				});
+			}
 		}
-		<% if (isOD && !isSimlive && ishtml5player){ %>
+		<!--% if (isOD && !isSimlive && ishtml5player){ %-->
+		<% if (false) { %>
 		var init_jump = "<%=tp_jump%>";
 		if (init_jump!="") {
 			setTimeout(function() {
-				tpjump();//Fast foward into the stream if tp_jump param is passed.
+				console.log(`calling tpjump`);
+				tpjump();//Fast foward into the stream if tp_jump param is passed. See viewerLoader.js
 			},300);
 		}
 		<%}%>
@@ -1590,15 +1700,22 @@ input.tp-button, button.tp-button {padding:6px 16px}
 		if("transparent" !== "<%=sBannerBackground_color%>"){
 		    $('#viewer_banner').addClass('extraBannerPadding');
 		}
+		
+		// add class to hide the extra space for the slides in mobile view
+		if($.oViewerData.isSlides === false){
+			$('#viewer_slide_tabs').addClass('slidesOff');
+		}
 	});	
 	
 	</script>
-	<form name="trackerform" aria-hidden="true" id="trackerform" target="trackerframe" method="post" action = "<%=trackerUrl%>?ei=<%=iEventId%>&ui=<%=ui%>&si=<%=si%>&iframe=1">
-   		<input type="hidden" name="ea" value="<%=ea%>" />
-   		<input type="hidden" name="st" value="" />
-   		<input type="hidden" name="ip" value="<%=StringTools.n2s(request.getRemoteAddr())%>" />
-  	</form>
-  	<iframe aria-hidden="true" style="position:absolute;left:0px;top:0px;width:0px;height:1px;" id="trackerframe" name="trackerframe" width="0" height="1" frameborder="0" scrolling="no"></iframe>
+	<form name="trackerform" aria-hidden="true" id="trackerform"
+		target="trackerframe" method="post"
+		action="<%=trackerUrl%>?ei=<%=iEventId%>&ui=<%=ui%>&si=<%=si%>&iframe=1">
+		<input type="hidden" name="ea" value="<%=ea%>" /> <input
+			type="hidden" name="st" value="" /> <input type="hidden" name="ip"
+			value="<%=StringTools.n2s(request.getRemoteAddr())%>" />
+	</form>
+	<iframe aria-hidden="true" style="position:absolute;left:0px;top:0px;width:0px;height:1px;" id="trackerframe" name="trackerframe" width="0" height="1" frameborder="0" scrolling="no"></iframe>
   	<img style="position:absolute;left:0px;top:0px;width:0px;height:1px;display:none" id="reporter" src="images/blank.gif?ei=<%=iEventId%>&ui=<%=ui%>&si=<%=si%>&t=start" hspace="0" vspace="0" border="0"/>
 	<%if ("html5".equals(sSlideType)){%>
     	<iframe id="html5cacheframe" aria-hidden="true" name="html5cacheframe" width="0" height="1" frameborder="0" scrolling="no"></iframe>
