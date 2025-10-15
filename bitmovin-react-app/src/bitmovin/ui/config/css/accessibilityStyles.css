@@ -1,0 +1,71 @@
+/* Accessibility styles for video player */
+
+/* Screen reader only content - visible to screen readers but hidden visually */
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Live regions for screen reader announcements */
+.live-region {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Enhanced focus indicators for volume controls */
+#volume-slider .bmpui-seekbar:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+#volume-toggle-button:focus {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* High contrast focus indicators */
+@media (prefers-contrast: high) {
+  #volume-slider .bmpui-seekbar:focus,
+  #volume-toggle-button:focus {
+    outline: 3px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+/* Ensure volume slider is keyboard accessible */
+#volume-slider .bmpui-seekbar[role="slider"] {
+  cursor: pointer;
+}
+
+#volume-slider .bmpui-seekbar[role="slider"]:focus {
+  box-shadow: 0 0 0 2px #0066cc;
+  background-color: rgba(0, 102, 204, 0.1);
+}
+
+/* Volume control hover states for better visibility */
+#volume-slider:hover .bmpui-seekbar,
+#volume-toggle-button:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Ensure live regions are properly positioned for screen readers */
+#player-status-live,
+#player-volume-live {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const distPath = path.join(__dirname, 'dist', 'assets');
-const destDir = '/home/ubuntu/workspace_classic/Convey/web/include/react';
+const destDir = '/home/ubuntu/workspace_classic/Convey/web/include/bitmovin';
 
 fs.readdir(distPath, (err, files) => {
   if (err) throw err;
