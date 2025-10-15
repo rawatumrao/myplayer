@@ -573,117 +573,8 @@ class VideoPlayer {
       }
     }
 
-    setupKeyboardNavigation() {
-      // Add keyboard support for volume control
-      document.addEventListener('keydown', (event) => {
-        const volumeSlider = document.getElementById('volume-slider');
-        const activeElement = document.activeElement;
-        
-        // Check if volume slider or its elements are focused
-        const isVolumeControlFocused = volumeSlider && (
-          activeElement === volumeSlider ||
-          volumeSlider.contains(activeElement) ||
-          activeElement.closest('#volume-slider')
-        );
-
-        if (isVolumeControlFocused) {
-          const currentVolume = this.player.getVolume();
-          let newVolume = currentVolume;
-          
-          switch(event.key) {
-            case 'ArrowUp':
-            case 'ArrowRight':
-              event.preventDefault();
-              newVolume = Math.min(1, currentVolume + 0.05); // Increase by 5%
-              this.player.setVolume(newVolume);
-              this.announceVolumeChange(newVolume);
-              break;
-              
-            case 'ArrowDown':
-            case 'ArrowLeft':
-              event.preventDefault();
-              newVolume = Math.max(0, currentVolume - 0.05); // Decrease by 5%
-              this.player.setVolume(newVolume);
-              this.announceVolumeChange(newVolume);
-              break;
-              
-            case 'Home':
-              event.preventDefault();
-              this.player.setVolume(0);
-              this.announceVolumeChange(0);
-              break;
-              
-            case 'End':
-              event.preventDefault();
-              this.player.setVolume(1);
-              this.announceVolumeChange(1);
-              break;
-          }
-        }
-      });
-    }
-
-    announceVolumeChange(volume) {
-      const volumePercentage = Math.round(volume * 100);
-      this.setVolumeLiveStatus(`Volume: ${volumePercentage} percent`);
-    }
-
-    enhanceVolumeSliderAccessibility() {
-      // Add ARIA attributes to volume slider after it's rendered
-      setTimeout(() => {
-        const volumeSlider = document.getElementById('volume-slider');
-        const volumeSeekBar = volumeSlider?.querySelector('.bmpui-seekbar');
-        
-        if (volumeSeekBar) {
-          volumeSeekBar.setAttribute('role', 'slider');
-          volumeSeekBar.setAttribute('aria-label', 'Volume control');
-          volumeSeekBar.setAttribute('aria-valuemin', '0');
-          volumeSeekBar.setAttribute('aria-valuemax', '100');
-          volumeSeekBar.setAttribute('aria-orientation', 'horizontal');
-          volumeSeekBar.setAttribute('tabindex', '0');
-          
-          // Update aria-valuenow when volume changes
-          const updateVolumeValue = () => {
-            const currentVolume = this.player.getVolume();
-            const volumePercentage = Math.round(currentVolume * 100);
-            volumeSeekBar.setAttribute('aria-valuenow', volumePercentage.toString());
-            volumeSeekBar.setAttribute('aria-valuetext', `${volumePercentage} percent`);
-          };
-          
-          // Initial value
-          updateVolumeValue();
-          
-          // Update on volume changes
-          this.player.on(PlayerEvent.VolumeChanged, updateVolumeValue);
-        }
-
-        // Set up live regions with proper ARIA attributes
-        this.setupLiveRegions();
-      }, 100);
-    }
-
-    setupLiveRegions() {
-      const statusLiveRegion = document.getElementById('player-status-live');
-      const volumeLiveRegion = document.getElementById('player-volume-live');
-      
-      if (statusLiveRegion) {
-        statusLiveRegion.setAttribute('aria-live', 'polite');
-        statusLiveRegion.setAttribute('aria-atomic', 'true');
-        statusLiveRegion.setAttribute('role', 'status');
-      }
-      
-      if (volumeLiveRegion) {
-        volumeLiveRegion.setAttribute('aria-live', 'polite');
-        volumeLiveRegion.setAttribute('aria-atomic', 'true');
-        volumeLiveRegion.setAttribute('role', 'status');
-      }
-    }
-
     setupEventListeners() {
         logger.debug('BitmovinPlayer::setupEventListeners()');     
-
-        // Add keyboard navigation for volume control
-        this.setupKeyboardNavigation();
 
         this.player.on(PlayerEvent.Play, (playEvent) => {
             logger.debug(`PlayerEvent.Play`);
@@ -779,8 +670,7 @@ class VideoPlayer {
         this.player.on(PlayerEvent.VolumeChanged, (event) => {
           // Get the current volume from the player API
            const currentVolume = this.player.getVolume(); // returns 0.0 - 1.0
-           const volumePercentage = Math.round(currentVolume * 100);
-            this.setVolumeLiveStatus(`Volume: ${volumePercentage} percent`);
+            this.setVolumeLiveStatus(`Volume: ${Math.round(currentVolume)} percent`);
         });
 
         this.player.on(PlayerEvent.PlayerResized, (resizedEvent) => {
@@ -880,9 +770,6 @@ class VideoPlayer {
             }
             logger.debug(`PlayerEvent.Ready`);
             this.setStatus(VideoPlayer.STATUS_READY);
-            
-            // Enhance volume slider accessibility
-            this.enhanceVolumeSliderAccessibility();
             
             // hide full screen button
             if (this.isLiveOrPrelive() && this.isMobilePlatform()) {
